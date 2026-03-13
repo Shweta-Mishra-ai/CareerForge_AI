@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "CareerForge AI LinkedIn Profile Scraper",
+  "version": "1.0",
+  "description": "Extracts professional data from your own LinkedIn profile to use in CareerForge AI without hitting anti-bot walls.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Extract Profile"
+  },
+  "host_permissions": [
+    "*://*.linkedin.com/*"
+  ]
+}

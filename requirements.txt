@@ -1,7 +1,6 @@
 streamlit
-PyPDF2
+pdfplumber
 requests
 beautifulsoup4
 google-generativeai
 groq
-# v3 - force cold boot

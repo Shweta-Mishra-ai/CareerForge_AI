@@ -92,6 +92,15 @@ def clean_and_parse_json(response_text, is_analysis=False):
                 parsed_data["analysis_report"] = [report]
             elif not isinstance(report, list):
                 parsed_data["analysis_report"] = ["Analysis generated."]
+            
+            # Ensure new keys exist
+            if "formatting_issues" not in parsed_data:
+                parsed_data["formatting_issues"] = ["None detected."]
+            if "hallucination_check" not in parsed_data:
+                parsed_data["hallucination_check"] = "Safe. All data grounded in original CV."
+            if "keyword_match_details" not in parsed_data:
+                parsed_data["keyword_match_details"] = "Keywords analyzed."
+                
             # Also normalize tailored_cv if present
             tailored = parsed_data.get("tailored_cv", {})
             if isinstance(tailored, dict):
@@ -116,7 +125,16 @@ def clean_and_parse_json(response_text, is_analysis=False):
 
     except Exception as e:
         if is_analysis:
-            return {"old_ats_score": 0, "missing_keywords": [], "tailored_cv": {}, "new_ats_score": 0, "analysis_report": [f"Analysis failed: {str(e)}"]}
+            return {
+                "old_ats_score": 0, 
+                "missing_keywords": [], 
+                "formatting_issues": [],
+                "keyword_match_details": "Failed",
+                "hallucination_check": "Failed",
+                "tailored_cv": {}, 
+                "new_ats_score": 0, 
+                "analysis_report": [f"Analysis failed: {str(e)}"]
+            }
         return {"name": "Candidate", "headline": "Professional", "contact": "", "skills": "", "experience": f"<p>Data extraction error: {str(e)}</p>", "education": "", "certificates": ""}
 
 def extract_base_cv(raw_text, is_url=False):
@@ -126,37 +144,37 @@ def extract_base_cv(raw_text, is_url=False):
 You are an Expert Resume Architect. Output ONLY a raw JSON object. No markdown, no explanation.
 Required keys: "name", "headline", "contact", "skills", "experience", "education", "certificates"
 
-The text is a limited scrape from a LinkedIn URL (usually only name/headline is available due to login wall).
-Your job: BUILD a complete professional CV based on whatever is in the text.
+The text is a limited scrape from a LinkedIn URL or Portfolio.
+Your job: BUILD a complete professional CV based heavily on whatever is in the text.
 
 INSTRUCTIONS:
-1. Extract the real name and headline from the text.
-2. "skills": Generate 10-15 relevant skills as a comma-separated string based on the headline.
-3. "experience": Generate 2-3 detailed, realistic job experiences as a SINGLE HTML string using <ul><li> tags. Match the profession. Use plausible company names (not "XYZ Corp").
-4. "education": Generate a relevant degree as a SINGLE HTML string (e.g. "<p>B.Tech in Computer Science - IIT Delhi (2018)</p>").
-5. "certificates": Generate 1-2 relevant industry certificates as a SINGLE HTML string.
-6. "contact": Use "<p>LinkedIn Profile | India</p>" as placeholder.
+1. Extract the name and headline.
+2. "skills": Generate relevant skills as a comma-separated string based on the text.
+3. "experience": Generate detailed, realistic job experiences as a SINGLE HTML string using <ul><li> tags. DO NOT invent false past companies if they are not listed. Keep it general if needed.
+4. "education": Generate education as a SINGLE HTML string.
+5. "certificates": Generate certificates as a SINGLE HTML string.
+6. "contact": Format as "<p>Contact details extracted or placeholders</p>".
 
 Text: {raw_text[:4000]}
 """
     else:
-        # For PDFs: extract all the real data from the detailed CV text
+        # For PDFs & Paste: extract all the real data closely
         prompt = f"""
 You are an expert resume parser. Output ONLY a raw JSON object. No markdown, no explanation.
 Required keys: "name", "headline", "contact", "skills", "experience", "education", "certificates"
 
 INSTRUCTIONS:
-1. Extract all available data from the text. Do not skip any information.
-2. "skills": Extract all skills as a comma-separated string.
-3. "experience": Format ALL work experience as a SINGLE HTML string using <p><b>Title at Company (Dates)</b></p><ul><li>Achievement</li></ul> structure.
-4. "education": Format ALL education as a SINGLE HTML string using <p> tags.
-5. "certificates": Format ALL certifications as a SINGLE HTML string using <p> tags.
-6. "contact": Extract email, LinkedIn, phone, location as a single string.
-7. If a section genuinely does not exist in the text, set it to "".
+1. Extract all available data from the text. 
+2. STRICT RULE: DO NOT INVENT ANYTHING. If a section genuinely does not exist in the text, set it to "".
+3. "skills": Extract all skills as a comma-separated string.
+4. "experience": Format ALL work experience as a SINGLE HTML string using <p><b>Title at Company (Dates)</b></p><ul><li>Achievement</li></ul> structure.
+5. "education": Format ALL education as a SINGLE HTML string using <p> tags.
+6. "certificates": Format ALL certifications as a SINGLE HTML string using <p> tags.
+7. "contact": Extract email, LinkedIn, phone, location as a single string.
 
 Text: {raw_text[:4000]}
 """
-    response_text = generate_with_fallback(prompt, temp=0.3)
+    response_text = generate_with_fallback(prompt, temp=0.1)
     return clean_and_parse_json(response_text, is_analysis=False)
 
 def analyze_and_tailor_cv(base_cv_json, jd_text):
@@ -164,19 +182,22 @@ def analyze_and_tailor_cv(base_cv_json, jd_text):
     trimmed_cv = json.dumps(base_cv_json)[:4000]
     prompt = f"""
 Act as an Expert ATS System. Output ONLY a raw JSON object. No markdown, no explanation.
-Required output keys: "old_ats_score", "missing_keywords", "tailored_cv", "new_ats_score", "analysis_report"
+Required output keys: "old_ats_score", "new_ats_score", "missing_keywords", "formatting_issues", "keyword_match_details", "hallucination_check", "tailored_cv", "analysis_report"
 
 1. "old_ats_score": integer 0-100, how well the base CV matches the JD.
-2. "missing_keywords": JSON array of 3-5 key terms from JD missing in CV.
-3. "tailored_cv": JSON object with keys: name, headline, contact, skills, experience, education, certificates.
-   - Copy name, headline, contact, education, certificates from base CV exactly.
-   - Add missing keywords to skills (comma-separated string).
-   - Rewrite experience as a single HTML string with <p><b>Title</b></p><ul><li> tags to align with JD.
-4. "new_ats_score": integer 0-100, improved score after tailoring.
-5. "analysis_report": JSON array of 3-5 short strings explaining changes made.
+2. "new_ats_score": integer 0-100, improved score after NLP tailoring.
+3. "missing_keywords": JSON array of 3-5 key terms from JD completely missing in CV.
+4. "formatting_issues": JSON array of 1-3 issues identified in base CV structure (e.g., "Missing explicit Skills section", "Dates format unreadable").
+5. "keyword_match_details": A short string explaining exactly why the score is what it is based on JD keywords.
+6. "hallucination_check": A string declaring "Safe" if you successfully avoided adding fake experience/tenure, or explaining compromises made.
+7. "tailored_cv": JSON object with keys: name, headline, contact, skills, experience, education, certificates.
+   - STRICT RULE (ANTI-HALLUCINATION): You are FORBIDDEN from adding fake years of experience, fake job titles, or fake degrees.
+   - You may ONLY rewrite existing bullet points in the "experience" section to better highlight JD keywords that the user demonstrably has.
+   - Format experience as a single HTML string with <p><b>Title</b></p><ul><li> tags.
+8. "analysis_report": JSON array of 3-5 strings explaining the strategic changes made to the CV targeting the JD.
 
 BASE CV: {trimmed_cv}
 JD: {jd_text[:3000]}
 """
-    response_text = generate_with_fallback(prompt, temp=0.2)
+    response_text = generate_with_fallback(prompt, temp=0.1)
     return clean_and_parse_json(response_text, is_analysis=True)

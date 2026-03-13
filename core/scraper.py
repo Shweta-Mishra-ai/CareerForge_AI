@@ -1,4 +1,4 @@
-import PyPDF2
+import pdfplumber
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
@@ -6,8 +6,14 @@ import re
 import random
 
 def extract_pdf_text(uploaded_file):
-    pdf_reader = PyPDF2.PdfReader(uploaded_file)
-    return "".join(page.extract_text() + "\n" for page in pdf_reader.pages)
+    text = []
+    with pdfplumber.open(uploaded_file) as pdf:
+        for page in pdf.pages:
+            # Extract text preserving layout where possible
+            page_text = page.extract_text(layout=True)
+            if page_text:
+                text.append(page_text)
+    return "\n".join(text)
 
 def scrape_url_text(url):
     """

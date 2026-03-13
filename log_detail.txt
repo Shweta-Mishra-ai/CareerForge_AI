@@ -1,0 +1,260 @@
+432ad25 - Sat Feb 28 12:40:05 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 47 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 21 deletions(-)
+
+6329cc8 - Sat Feb 28 12:35:42 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 45 ++++++++++++++++++++++++++++-----------------
+ 1 file changed, 28 insertions(+), 17 deletions(-)
+
+1d3487c - Sat Feb 28 12:32:53 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)
+
+6535785 - Sat Feb 28 12:32:24 2026 +0530 - Update scraper.py
+ core/scraper.py | 35 +++++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 14 deletions(-)
+
+2662e70 - Sat Feb 28 12:28:44 2026 +0530 - Update scraper.py
+ core/scraper.py | 50 +++++++++++++++-----------------------------------
+ 1 file changed, 15 insertions(+), 35 deletions(-)
+
+5ffabe3 - Sat Feb 28 12:28:18 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 31 ++++++++++++++++---------------
+ 1 file changed, 16 insertions(+), 15 deletions(-)
+
+8d58cbe - Sat Feb 28 12:25:57 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
+
+1ddd847 - Sat Feb 28 12:25:35 2026 +0530 - Update scraper.py
+ core/scraper.py | 56 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 33 insertions(+), 23 deletions(-)
+
+6a33ecf - Sat Feb 28 12:19:46 2026 +0530 - Update scraper.py
+ core/scraper.py | 49 ++++++++++++++++++-------------------------------
+ 1 file changed, 18 insertions(+), 31 deletions(-)
+
+d20b0ae - Sat Feb 28 12:19:24 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)
+
+2d43871 - Sat Feb 28 12:16:23 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 39 ++++++++++++++++-----------------------
+ 1 file changed, 16 insertions(+), 23 deletions(-)
+
+20f0791 - Sat Feb 28 12:16:04 2026 +0530 - Update scraper.py
+ core/scraper.py | 42 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 30 insertions(+), 12 deletions(-)
+
+ee5f70c - Sat Feb 28 12:06:41 2026 +0530 - Update scraper.py
+ core/scraper.py | 28 ++++++++--------------------
+ 1 file changed, 8 insertions(+), 20 deletions(-)
+
+da7e3f6 - Sat Feb 28 12:06:19 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 44 ++++++++++++++++++++++----------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)
+
+24f469e - Sat Feb 28 11:59:36 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)
+
+c87f313 - Sat Feb 28 11:59:06 2026 +0530 - Update scraper.py
+ core/scraper.py | 53 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 26 insertions(+), 27 deletions(-)
+
+f633c33 - Sat Feb 28 11:56:04 2026 +0530 - Update scraper.py
+ core/scraper.py | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)
+
+42cf5ee - Sat Feb 28 11:45:52 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 59 +++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 42 insertions(+), 17 deletions(-)
+
+63b1404 - Sat Feb 28 11:45:23 2026 +0530 - Update app.py
+ app.py | 112 +++++++++++++++++++++++++++--------------------------------------
+ 1 file changed, 46 insertions(+), 66 deletions(-)
+
+e3bbff3 - Sat Feb 28 11:39:12 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 47 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 26 insertions(+), 21 deletions(-)
+
+2a68444 - Sat Feb 28 11:38:12 2026 +0530 - Update scraper.py
+ core/scraper.py | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+0cd4ff8 - Sat Feb 28 11:37:24 2026 +0530 - Update cv_styles.py
+ templates/cv_styles.py | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+2915ce7 - Sat Feb 28 11:28:57 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 89 ++++++++-----------------------------------------------
+ 1 file changed, 12 insertions(+), 77 deletions(-)
+
+e24df05 - Sat Feb 28 11:24:19 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)
+
+ba6290b - Sat Feb 28 11:22:40 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 67 +++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 43 insertions(+), 24 deletions(-)
+
+661edc4 - Sat Feb 28 11:19:43 2026 +0530 - Update requirements.txt
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+fffcff9 - Sat Feb 28 11:19:24 2026 +0530 - Update cv_styles.py
+ templates/cv_styles.py | 74 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 62 insertions(+), 12 deletions(-)
+
+c73add7 - Sat Feb 28 11:13:42 2026 +0530 - Update cv_styles.py
+ templates/cv_styles.py | 40 ++++++++++++++++++----------------------
+ 1 file changed, 18 insertions(+), 22 deletions(-)
+
+9008731 - Sat Feb 28 11:12:29 2026 +0530 - Update requirements.txt
+ requirements.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+067db65 - Sat Feb 28 11:12:11 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 82 +++++++++++++++++++++++++++----------------------------
+ 1 file changed, 41 insertions(+), 41 deletions(-)
+
+3f5e94b - Sat Feb 28 11:01:28 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 47 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 33 insertions(+), 14 deletions(-)
+
+a644e93 - Sat Feb 28 11:00:37 2026 +0530 - Update app.py
+ app.py | 113 +++++++++++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 71 insertions(+), 42 deletions(-)
+
+73fd183 - Sat Feb 28 10:53:45 2026 +0530 - Update cv_styles.py
+ templates/cv_styles.py | 59 +++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 46 insertions(+), 13 deletions(-)
+
+64d099a - Sat Feb 28 10:53:16 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 32 ++++++++++----------------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)
+
+b5dfa17 - Sat Feb 28 10:52:51 2026 +0530 - Update app.py
+ app.py | 102 ++++++++++++++++++++++++++++++++---------------------------------
+ 1 file changed, 50 insertions(+), 52 deletions(-)
+
+f6356a3 - Sat Feb 28 10:44:13 2026 +0530 - Update app.py
+ app.py | 33 +++++++++++++++++++++++----------
+ 1 file changed, 23 insertions(+), 10 deletions(-)
+
+308f29f - Sat Feb 28 10:41:52 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 45 ++++++++++++++++++++++++---------------------
+ 1 file changed, 24 insertions(+), 21 deletions(-)
+
+15981de - Sat Feb 28 10:40:35 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 39 +++++++++++++++++++++++++++++++--------
+ 1 file changed, 31 insertions(+), 8 deletions(-)
+
+4a7803d - Sat Feb 28 10:37:28 2026 +0530 - Update app.py
+ app.py | 80 +++++++++++++++++++++++++++++++-----------------------------------
+ 1 file changed, 38 insertions(+), 42 deletions(-)
+
+5c390c7 - Sat Feb 28 10:37:00 2026 +0530 - Update cv_styles.py
+ templates/cv_styles.py | 93 ++++++++++++++++++++++----------------------------
+ 1 file changed, 41 insertions(+), 52 deletions(-)
+
+693153b - Sat Feb 28 10:36:12 2026 +0530 - Update ai_engine.py
+ core/ai_engine.py | 38 ++++++++++++++------------------------
+ 1 file changed, 14 insertions(+), 24 deletions(-)
+
+86d035d - Sat Feb 28 10:35:40 2026 +0530 - Update scraper.py
+ core/scraper.py | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)
+
+a9a78a3 - Sat Feb 28 10:15:17 2026 +0530 - Update app.py
+ app.py | 259 +++++++++++++++++++++--------------------------------------------
+ 1 file changed, 81 insertions(+), 178 deletions(-)
+
+26f7b61 - Sat Feb 28 10:14:44 2026 +0530 - Create ai_engine.py
+ core/ai_engine.py | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 55 insertions(+)
+
+4984dfe - Sat Feb 28 10:13:54 2026 +0530 - Create cv_styles.py
+ templates/cv_styles.py | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
+
+c1c377e - Sat Feb 28 10:13:12 2026 +0530 - Create scraper.py
+ core/scraper.py | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+a488294 - Sat Feb 28 10:12:19 2026 +0530 - Update requirements.txt
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+d1c15aa - Fri Feb 27 17:52:52 2026 +0530 - Update README.md
+ README.md | 54 ++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 44 insertions(+), 10 deletions(-)
+
+a24852c - Fri Feb 27 17:45:58 2026 +0530 - Update app.py
+ app.py | 72 +++++++++++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 49 insertions(+), 23 deletions(-)
+
+8295cd6 - Fri Feb 27 17:41:15 2026 +0530 - Update app.py
+ app.py | 30 +++++++++++++++++++++++-------
+ 1 file changed, 23 insertions(+), 7 deletions(-)
+
+8156f37 - Fri Feb 27 17:37:39 2026 +0530 - Update app.py
+ app.py | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
+
+7daa095 - Fri Feb 27 17:34:10 2026 +0530 - Update app.py
+ app.py | 138 ++++++++++++++++++++++++++++++-----------------------------------
+ 1 file changed, 63 insertions(+), 75 deletions(-)
+
+aab3930 - Fri Feb 27 17:31:45 2026 +0530 - Update app.py
+ app.py | 115 ++++++++++++++++++++++++++++-------------------------------------
+ 1 file changed, 49 insertions(+), 66 deletions(-)
+
+e1f01b2 - Fri Feb 27 17:27:59 2026 +0530 - Update app.py
+ app.py | 154 +++++++++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 103 insertions(+), 51 deletions(-)
+
+8045974 - Fri Feb 27 17:27:25 2026 +0530 - Update requirements.txt
+ requirements.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+64d930e - Fri Feb 27 17:20:29 2026 +0530 - Update requirements.txt
+ requirements.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+ade13b9 - Fri Feb 27 17:19:53 2026 +0530 - Update app.py
+ app.py | 201 +++++++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 115 insertions(+), 86 deletions(-)
+
+96676ce - Fri Feb 27 17:10:22 2026 +0530 - Update app.py
+ app.py | 134 +++++++++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 90 insertions(+), 44 deletions(-)
+
+50f2bcd - Fri Feb 27 17:09:48 2026 +0530 - Update requirements.txt
+ requirements.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+0890b02 - Fri Feb 27 17:06:29 2026 +0530 - Update requirements.txt
+ requirements.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+e73ebf6 - Fri Feb 27 17:06:02 2026 +0530 - Update app.py
+ app.py | 82 +++++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 46 insertions(+), 36 deletions(-)
+
+1a6c4fb - Fri Feb 27 16:56:42 2026 +0530 - Update README.md
+ README.md | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+55cf222 - Fri Feb 27 16:56:13 2026 +0530 - Create app.py
+ app.py | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+f736a81 - Fri Feb 27 16:55:48 2026 +0530 - Create requirements.txt
+ requirements.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+d248770 - Fri Feb 27 16:55:09 2026 +0530 - Initial commit
+ LICENSE   | 21 +++++++++++++++++++++
+ README.md |  2 ++
+ 2 files changed, 23 insertions(+)
