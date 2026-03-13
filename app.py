@@ -14,11 +14,10 @@ st.markdown("Transform any profile or CV into an ATS-optimized professional resu
 # --- SIDEBAR ---
 st.sidebar.title("🎨 Formatting Options")
 template_options = [
-    "Executive Blue (Premium)", 
-    "Modern Accent (Clean)", 
-    "Classic Corporate",
-    "Modern Sidebar (Original)",
-    "Minimalist Tech (Original)"
+    "Premium Two-Column (Navy & White)", 
+    "Executive Corporate (Clean & Bold)", 
+    "Creative Professional (Ribbons & Colors)",
+    "Minimalist Tech (James Christopher Ref)"
 ]
 selected_template = st.sidebar.selectbox("Choose CV Template:", template_options)
 
