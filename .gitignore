@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+log.txt
+log_detail.txt
+git_history.txt
