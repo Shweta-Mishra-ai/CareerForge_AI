@@ -1,100 +1,155 @@
+"""
+core/scraper.py
+===============
+Data extraction layer — PDF + URL scraping.
+
+CHANGES from original:
+- pdfplumber kept (better than PyPDF2 for layout-heavy PDFs)
+- URL scraper logic preserved, just cleaner structure
+- _name_from_url() same logic, just cleaner
+- No st imports — pure utility module
+"""
+
+import random
+import re
+import urllib.parse
+
 import pdfplumber
 import requests
 from bs4 import BeautifulSoup
-import urllib.parse
-import re
-import random
 
-def extract_pdf_text(uploaded_file):
-    text = []
+# ─────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────
+
+REQUEST_TIMEOUT = 10  # seconds
+
+_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+]
+
+_BASE_HEADERS = {
+    "Accept":                  "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language":         "en-US,en;q=0.9",
+    "Accept-Encoding":         "gzip, deflate, br",
+    "DNT":                     "1",
+    "Connection":              "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest":          "document",
+    "Sec-Fetch-Mode":          "navigate",
+    "Sec-Fetch-Site":          "none",
+    "Sec-Fetch-User":          "?1",
+    "Cache-Control":           "max-age=0",
+}
+
+
+# ─────────────────────────────────────────────────────
+# PDF EXTRACTION
+# ─────────────────────────────────────────────────────
+
+def extract_pdf_text(uploaded_file) -> str:
+    """
+    Extract text from a PDF using pdfplumber.
+    layout=True preserves column order for multi-column CVs.
+    """
+    pages = []
     with pdfplumber.open(uploaded_file) as pdf:
         for page in pdf.pages:
-            # Extract text preserving layout where possible
             page_text = page.extract_text(layout=True)
             if page_text:
-                text.append(page_text)
-    return "\n".join(text)
+                pages.append(page_text)
+    return "\n".join(pages)
 
-def scrape_url_text(url):
+
+# ─────────────────────────────────────────────────────
+# URL SCRAPING
+# ─────────────────────────────────────────────────────
+
+def scrape_url_text(url: str) -> str:
     """
-    Aggressively tries to fetch public LinkedIn profile data using
-    multiple realistic browser headers to bypass bot detection.
-    Falls back gracefully to name extraction from the URL slug.
+    Try to scrape a public profile URL.
+
+    Strategy:
+      1. Visit LinkedIn homepage to get cookies (anti-bot bypass)
+      2. Fetch actual profile with randomised UA + full browser headers
+      3. Extract og: meta tags + visible page text
+      4. If authwall detected or text too short → fallback to name-from-slug
+
+    Returns whatever text could be extracted (never raises).
     """
-    # Rotate through realistic browser User-Agents
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    ]
-    
-    headers = {
-        "User-Agent": random.choice(user_agents),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Cache-Control": "max-age=0",
-    }
+    headers = {**_BASE_HEADERS, "User-Agent": random.choice(_USER_AGENTS)}
 
     try:
         session = requests.Session()
-        # First visit the LinkedIn homepage to get cookies like a real browser
+        # Warm up session with real cookies
         session.get("https://www.linkedin.com", headers=headers, timeout=8)
-        
-        # Now fetch the actual profile page
-        response = session.get(url, headers=headers, timeout=10, allow_redirects=True)
-        soup = BeautifulSoup(response.text, 'html.parser')
 
-        extracted_data = []
+        response = session.get(url, headers=headers, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        # Try og: meta tags (LinkedIn sometimes serves these for public profiles)
-        meta_title = soup.find("meta", property="og:title")
-        meta_desc = soup.find("meta", property="og:description")
-        
-        if meta_title and meta_title.get("content"):
-            extracted_data.append(f"Profile Name/Headline: {meta_title.get('content')}")
-        if meta_desc and meta_desc.get("content"):
-            extracted_data.append(f"Summary: {meta_desc.get('content')}")
+        extracted = []
 
-        # Try standard title tag
+        # og: meta tags (sometimes served even for public profiles)
+        og_title = soup.find("meta", property="og:title")
+        og_desc  = soup.find("meta", property="og:description")
+        if og_title and og_title.get("content"):
+            extracted.append(f"Profile: {og_title['content']}")
+        if og_desc and og_desc.get("content"):
+            extracted.append(f"Summary: {og_desc['content']}")
+
         title_tag = soup.find("title")
         if title_tag and title_tag.string:
-            extracted_data.append(f"Page Title: {title_tag.string}")
+            extracted.append(f"Page Title: {title_tag.string}")
 
-        # Try to get any visible text before the auth wall kicks in
-        for script in soup(["script", "style", "noscript"]):
-            script.decompose()
-        
-        page_text = soup.get_text(separator=' ', strip=True)
-        
-        # Filter out pure authwall redirects
-        if len(page_text) > 200 and "authwall" not in page_text.lower()[:200]:
-            extracted_data.append(f"Page Content:\n{page_text[:2000]}")
+        # Strip scripts/styles before getting visible text
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
 
-        if extracted_data:
-            return "\n".join(extracted_data)
-        
+        page_text = soup.get_text(separator=" ", strip=True)
+
+        # Only use page text if it's real content (not just the authwall)
+        is_authwall = "authwall" in page_text.lower()[:300]
+        if len(page_text) > 200 and not is_authwall:
+            extracted.append(f"Page Content:\n{page_text[:2000]}")
+
+        if extracted:
+            return "\n".join(extracted)
+
     except Exception:
-        pass
-    
-    # Final fallback: extract name from the URL slug itself and pass it to the AI
+        pass  # Fall through to slug fallback
+
     return _name_from_url(url)
 
 
-def _name_from_url(url):
-    """Extract the person's name from the LinkedIn URL slug as a last resort."""
+# ─────────────────────────────────────────────────────
+# FALLBACK
+# ─────────────────────────────────────────────────────
+
+def _name_from_url(url: str) -> str:
+    """
+    Last resort: extract a name hint from the LinkedIn URL slug.
+    e.g. linkedin.com/in/john-doe-123 → "John Doe"
+    """
     try:
         path = urllib.parse.urlparse(url).path
         slug = path.strip("/").split("/")[-1]
-        clean_name = re.sub(r'[^a-zA-Z\s]', ' ', slug.replace('-', ' ')).strip().title()
-        return f"Name: {clean_name}\nLinkedIn URL: {url}\nNote: Only the name could be extracted from the URL."
+        # Remove trailing numbers/IDs (e.g. john-doe-123a → john-doe)
+        slug = re.sub(r"[^a-zA-Z\-]", "", slug)
+        clean_name = slug.replace("-", " ").strip().title()
+        if clean_name:
+            return (
+                f"Name: {clean_name}\n"
+                f"LinkedIn URL: {url}\n"
+                f"Note: Only the name could be extracted from the URL. "
+                f"For best results, please use the PDF upload method."
+            )
     except Exception:
-        return "Name: Candidate\nNote: Could not extract data from URL."
+        pass
+    return (
+        "Name: Candidate\n"
+        "Note: Could not extract data from this URL. "
+        "Please use the PDF upload method instead."
+    )
