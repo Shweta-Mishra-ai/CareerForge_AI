@@ -1,5 +1,55 @@
+# ===========================
+# Python
+# ===========================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ===========================
+# Virtual Environment
+# ===========================
+venv/
+.env/
+.venv/
+env/
+
+# ===========================
+# Logs & Debug Files (DELETE THESE FROM REPO TOO)
+# ===========================
 log.txt
 log_detail.txt
 git_history.txt
+*.log
+
+# ===========================
+# Temp / Test Artifacts
+# ===========================
+temp_*.py
+test.html
+*.tmp
+
+# ===========================
+# Streamlit Secrets (NEVER commit)
+# ===========================
+.streamlit/secrets.toml
+
+# ===========================
+# OS Files
+# ===========================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ===========================
+# API Keys / Env
+# ===========================
+.env
+*.env
