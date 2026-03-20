@@ -29,7 +29,7 @@
 - [Quick Start](#-quick-start)
 - [How It Works](#-how-it-works)
 - [Project Structure](#-project-structure)
-- [Roadmap](#-roadmap)
+- [V2 Roadmap](#-v2-roadmap)
 - [Contributing](#-contributing)
 - [Support the Project](#-support-the-project)
 
@@ -44,9 +44,9 @@ LinkedIn's anti-bot defenses (`HTTP 999`, `403 Forbidden`) are some of the most 
 | Layer | Method | Reliability |
 |---|---|---|
 | 🥇 **Primary** | Native LinkedIn PDF Upload | ✅ 100% — No network, no ban |
-| 🥈 **Fallback** | Googlebot-spoofed URL scraper + slug parsing | ⚡ Best-effort, graceful degradation |
+| 🥈 **Fallback** | Randomised UA scraper + slug parsing | ⚡ Best-effort, graceful degradation |
 
-Once data is extracted — messy or clean — **Google Gemini 1.5 Flash** restructures it into a perfect JSON schema. The result is a **print-ready, Canva-quality HTML CV** you can save as a PDF instantly.
+Once data is extracted — messy or clean — **Google Gemini 2.0 Flash** restructures it into a perfect JSON schema. The result is a **print-ready, Canva-quality HTML CV** you can save as a PDF instantly.
 
 ---
 
@@ -73,10 +73,9 @@ Once data is extracted — messy or clean — **Google Gemini 1.5 Flash** restru
                 ▼                             ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                     EXTRACTION LAYER                         │
-│                                                              │
 │   ┌────────────────┐          ┌──────────────────────────┐  │
-│   │  PyPDF2        │          │  BeautifulSoup4 +         │  │
-│   │  Text Parser   │          │  Requests (Googlebot UA) │  │
+│   │  pdfplumber    │          │  Requests + BeautifulSoup│  │
+│   │  (layout-aware)│          │  (Randomised UA Headers) │  │
 │   └───────┬────────┘          └────────────┬─────────────┘  │
 │           └────────────┬───────────────────┘                │
 └────────────────────────┼───────────────────────────────────┘
@@ -84,29 +83,24 @@ Once data is extracted — messy or clean — **Google Gemini 1.5 Flash** restru
                          ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                      AI ENGINE LAYER                         │
-│                                                              │
 │   ┌──────────────────────────────────────────────────────┐  │
-│   │  Google Gemini 1.5 Flash / Gemini Pro                │  │
-│   │                                                      │  │
-│   │  Prompt: "Extract structured CV data as JSON"        │  │
+│   │  Gemini 2.0 Flash → 1.5 Flash → 1.5 Pro (cascade)   │  │
+│   │  Fallback: Groq Llama 3.3 70B                        │  │
 │   │  Output: { name, headline, skills[], experience[] }  │  │
-│   │  Fallback LLM: Groq (xAI Grok) on API timeout       │  │
 │   └────────────────────────┬─────────────────────────────┘  │
 └────────────────────────────┼────────────────────────────────┘
                              │  Clean JSON Schema
                              ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                    CV GENERATION LAYER                       │
-│                                                              │
 │   ┌──────────────────────────────────────────────────────┐  │
-│   │  HTML/CSS Template Engine                            │  │
-│   │  • Canva-style layout  • Dark/Light mode             │  │
-│   │  • Base64 encoded for direct browser download        │  │
+│   │  7 Premium HTML/CSS Templates                        │  │
+│   │  Two-Column · Executive · Creative · Minimalist      │  │
+│   │  Teal Accent · Academic · Dark Premium               │  │
 │   └────────────────────────┬─────────────────────────────┘  │
 └────────────────────────────┼────────────────────────────────┘
-                             │
                              ▼
-                    📥 Download CV (HTML → PDF via Ctrl+P)
+                    📥 Download CV  (HTML → PDF via Ctrl+P)
 ```
 
 ---
@@ -114,19 +108,22 @@ Once data is extracted — messy or clean — **Google Gemini 1.5 Flash** restru
 ## ✨ Key Features
 
 ### 🛡️ Anti-Bot Resilience
-LinkedIn's `HTTP 999` and `403` errors are handled proactively. The app **never crashes** — it degrades gracefully from URL scraping to PDF upload with clear user guidance.
+LinkedIn's `HTTP 999` and `403` errors handled proactively. The app **never crashes** — degrades gracefully from URL scraping to PDF upload with clear user guidance.
 
-### 🧠 AI-Powered Extraction (Gemini 1.5 Flash)
-Raw, unstructured LinkedIn text — with inconsistent formatting, emojis, and section bleed — is transformed into a clean JSON schema using Gemini's language understanding. Groq (Grok) serves as a fast fallback if Gemini hits rate limits.
+### 🧠 Dual-LLM Cascade (4-layer fallback)
+**Gemini 2.0 Flash-Lite → 2.0 Flash → 1.5 Flash → Groq Llama 3.3 70B** — four layers ensure 99.9% uptime regardless of API rate limits or model deprecations.
 
-### 🎨 Premium CV Template
-Not just text dumped into a box. The output is a structured, typography-forward HTML resume — styled for print — with sections for Summary, Experience, Skills, Education, and Certifications.
+### 🎨 7 Premium CV Templates
+Each template is hand-crafted with production-grade HTML/CSS — Two-Column Navy, Executive Corporate, Creative Ribbons, Minimalist Clean, Teal Accent, Academic Structured, Dark Premium Gold.
 
-### 📎 Chrome Extension Support
-A companion Chrome Extension (`/chrome_extension`) allows users to capture their LinkedIn profile directly from the browser, eliminating the need for manual PDF export.
+### 🎯 Deep ATS Analysis Engine
+Section-by-section scoring, missing keyword detection, formatting audit, hallucination integrity check, and a fully tailored CV — all in one click.
 
-### 🎯 ATS Optimization Mode
-Paste a job description or JD URL alongside your LinkedIn data to receive a tailored, keyword-optimized CV aligned with Applicant Tracking System criteria.
+### 📊 Career Tools Suite
+Auto-generated **Cover Letter** and **Interview Prep Questions** grounded in your actual CV and the target JD. No generic output.
+
+### 📎 Chrome Extension (MV3)
+Capture your LinkedIn profile directly from the browser — no manual PDF export needed.
 
 ---
 
@@ -135,13 +132,13 @@ Paste a job description or JD URL alongside your LinkedIn data to receive a tail
 | Layer | Technology | Purpose |
 |---|---|---|
 | **Frontend / Hosting** | Streamlit | UI & Cloud Deployment |
-| **PDF Parsing** | PyPDF2 | Primary data extraction |
+| **PDF Parsing** | pdfplumber | Layout-aware text extraction |
 | **Web Scraping** | BeautifulSoup4, Requests | URL fallback extraction |
-| **AI Engine** | Google Gemini 1.5 Flash | JSON structuring from raw text |
-| **Fallback LLM** | Groq (xAI Grok) | Rate-limit resilience |
+| **Primary AI** | Google Gemini 2.0/1.5 | JSON structuring from raw text |
+| **Fallback LLM** | Groq (Llama 3.3 70B) | Rate-limit & deprecation resilience |
 | **CV Rendering** | HTML5 / CSS3 | Print-ready output |
 | **Distribution** | Base64 Encoding | In-browser file download |
-| **Browser Tool** | Chrome Extension (JS) | Direct LinkedIn capture |
+| **Browser Tool** | Chrome Extension MV3 | Direct LinkedIn capture |
 
 ---
 
@@ -149,7 +146,8 @@ Paste a job description or JD URL alongside your LinkedIn data to receive a tail
 
 ### Prerequisites
 - Python 3.9+
-- Google Gemini API Key → [Get yours here](https://makersuite.google.com/app/apikey)
+- Google Gemini API Key → [Get free key](https://makersuite.google.com/app/apikey)
+- Groq API Key → [Get free key](https://console.groq.com)
 
 ### 1. Clone & Install
 
@@ -159,14 +157,13 @@ cd CareerForge_AI
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
 Create `.streamlit/secrets.toml`:
 
 ```toml
 GEMINI_API_KEY = "your_gemini_api_key_here"
-# Optional: Groq fallback
-GROQ_API_KEY = "your_groq_api_key_here"
+GROQ_API_KEY   = "your_groq_api_key_here"
 ```
 
 ### 3. Run
@@ -175,23 +172,23 @@ GROQ_API_KEY = "your_groq_api_key_here"
 streamlit run app.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501) in your browser.
+Open [http://localhost:8501](http://localhost:8501)
 
 ---
 
 ## 🎯 How It Works
 
 ```
-Step 1 → Upload LinkedIn PDF  (from LinkedIn → Me → Save to PDF)
-           OR paste your LinkedIn profile URL
+Step 1 → Upload LinkedIn PDF   (LinkedIn → Me → Save to PDF)
+           OR paste LinkedIn URL
+           OR paste text / use Chrome Extension
 
-Step 2 → (Optional) Paste a Job Description for ATS targeting
+Step 2 → (Optional) Paste Job Description for ATS targeting
 
 Step 3 → Click "Analyze & Generate"
-           AI extracts → structures → templates your data
+           AI extracts → structures → templates your profile
 
-Step 4 → Download your CV as HTML
-           Save as PDF: Ctrl+P → Save as PDF (Chrome recommended)
+Step 4 → Download as HTML → Save as PDF via Ctrl+P
 ```
 
 ---
@@ -202,50 +199,55 @@ Step 4 → Download your CV as HTML
 CareerForge_AI/
 │
 ├── .streamlit/
-│   └── secrets.toml          # API keys (not committed)
+│   └── secrets.toml          # API keys (gitignored — never committed)
 │
-├── chrome_extension/         # Browser extension for direct LinkedIn capture
+├── chrome_extension/         # MV3 Chrome Extension
 │   ├── manifest.json
 │   ├── content.js
-│   └── popup.html
+│   ├── popup.html
+│   └── popup.js
 │
-├── core/                     # Business logic (no Streamlit imports here)
-│   ├── extractor.py          # PDF + URL extraction pipeline
-│   ├── ai_engine.py          # Gemini + Groq LLM orchestration
-│   └── cv_builder.py         # HTML/CSS template renderer
+├── core/                     # Business logic (zero Streamlit imports)
+│   ├── ai_engine.py          # LLM cascade + JSON parsing + prompts
+│   └── scraper.py            # PDF extraction + URL scraping
 │
-├── templates/                # CV HTML/CSS templates
+├── templates/
+│   └── cv_styles.py          # 7 premium HTML/CSS CV templates
 │
 ├── app.py                    # Streamlit entry point
 ├── requirements.txt
+├── .gitignore
 ├── LICENSE
 └── README.md
 ```
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ V2 Roadmap
 
-| Status | Feature |
-|---|---|
-| ✅ Done | PDF upload extraction |
-| ✅ Done | Gemini AI structuring |
-| ✅ Done | HTML CV generation |
-| ✅ Done | Streamlit Cloud deployment |
-| ✅ Done | Chrome Extension (beta) |
-| ✅ Done | Groq fallback LLM |
-| 🔄 In Progress | Multiple CV template styles |
-| 🔄 In Progress | ATS score analyzer |
-| 📋 Planned | LinkedIn OAuth (official API) |
-| 📋 Planned | Resume → LinkedIn Profile (reverse mode) |
-| 📋 Planned | DOCX export support |
-| 📋 Planned | Cover Letter generator |
+> V1 is stable and live. These are confirmed V2 features.
+
+| Status | Feature | Description |
+|---|---|---|
+| ✅ **V1 Done** | PDF + URL + Paste input | Bulletproof dual-layer extraction |
+| ✅ **V1 Done** | 7 premium CV templates | Hand-crafted HTML/CSS designs |
+| ✅ **V1 Done** | ATS scoring + CV tailoring | Full gap analysis + rewritten CV |
+| ✅ **V1 Done** | Cover letter generator | JD-grounded, no filler templates |
+| ✅ **V1 Done** | Interview prep questions | Gap-focused, role-specific |
+| ✅ **V1 Done** | Chrome Extension (MV3) | Direct LinkedIn browser capture |
+| 🔄 **V2 Planned** | **ATS-Only Mode** | Score your existing CV without regenerating it — keep original format, get only keyword fix suggestions |
+| 🔄 **V2 Planned** | **CV Analytics Dashboard** | HR-style visual report — skill gap radar, experience timeline, keyword density heatmap, career progression score |
+| 🔄 **V2 Planned** | **Section-Level Tips Engine** | Personalised, line-by-line improvement tips per CV section — *"Add metrics to bullet 2"*, *"Missing cloud keywords in Skills"* |
+| 🔄 **V2 Planned** | **DOCX Export** | Download CV as editable Word document |
+| 🔄 **V2 Planned** | **Multi-JD Comparison** | Match your CV against 3 JDs simultaneously, ranked by fit |
+| 📋 **V3 Future** | LinkedIn OAuth | Official API — no scraping needed |
+| 📋 **V3 Future** | Reverse Mode | CV → LinkedIn profile sections generator |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are very welcome. Here's how to get started:
+Contributions are welcome!
 
 ```bash
 # Fork the repo, then:
@@ -253,33 +255,33 @@ git clone https://github.com/YOUR_USERNAME/CareerForge_AI.git
 git checkout -b feature/your-feature-name
 
 # Make your changes, then:
-git commit -m "feat: add your feature description"
+git commit -m "feat: describe your change"
 git push origin feature/your-feature-name
 # Open a Pull Request
 ```
 
-Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages (`feat:`, `fix:`, `docs:`, `refactor:`).
+Please follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 
-For major changes, please open an issue first to discuss what you'd like to change.
+For major changes, open an Issue first to discuss scope.
 
 ---
 
 ## 📄 License
 
-Distributed under the **MIT License** — free for personal, commercial, and portfolio use.
+MIT License — free for personal, commercial, and portfolio use.
 See [`LICENSE`](https://github.com/Shweta-Mishra-ai/CareerForge_AI/blob/main/LICENSE) for full terms.
 
 ---
 
 ## ⭐ Support the Project
 
-If CareerForge AI saved you time or helped your job search, the best way to support is:
+If CareerForge AI helped your job search:
 
 ```
-⭐ Star this repository — it helps more job seekers discover this tool
-🍴 Fork it — customize it, build on it, make it yours
-🐛 Open an Issue — found a bug? your report makes it better for everyone
-📢 Share it — LinkedIn, Twitter, Discord, wherever developers gather
+⭐ Star this repo    — helps other job seekers find this tool
+🍴 Fork it          — build on it, make it yours
+🐛 Open an Issue    — your bug report makes it better for everyone
+📢 Share it         — LinkedIn, Twitter, wherever developers gather
 ```
 
 ---
