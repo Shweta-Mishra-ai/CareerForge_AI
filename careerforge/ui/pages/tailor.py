@@ -20,8 +20,8 @@ STATUS_TEXT = {
 
 def _run(profile, job: str) -> None:
     try:
-        client = state.charge_ai()
         with st.spinner("Rewording your bullets for this posting..."):
+            client = state.charge_ai()
             result = tailor(client, profile.exportable(), job)
     except Exception as exc:  # noqa: BLE001
         st.error(explain(exc), icon=":material/error:")

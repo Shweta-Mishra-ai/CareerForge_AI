@@ -280,6 +280,50 @@ def _build_patterns() -> list[tuple[Skill, re.Pattern[str] | None, re.Pattern[st
 _PATTERNS = _build_patterns()
 
 
+def _push(tops: list[tuple[int, str]], end: int, name: str) -> None:
+    """Keep the two largest ends belonging to two different skills."""
+    for k, (e, n) in enumerate(tops):
+        if n == name:
+            tops[k] = (max(e, end), name)
+            break
+    else:
+        tops.append((end, name))
+    tops.sort(reverse=True)
+    del tops[2:]
+
+
+def _best(tops: list[tuple[int, str]], exclude: str) -> int:
+    return next((end for end, name in tops if name != exclude), -1)
+
+
+def _standalone(spans: dict[str, list[tuple[int, int]]]) -> set[str]:
+    """Skills with at least one mention that is not inside a LONGER mention of a different skill.
+
+    A sweep over the mentions in start order, so the cost is O(n log n) in the number of mentions. (The obvious
+    pairwise comparison was quadratic: a 100 KB document took seconds, a 1 MB one minutes.)
+    """
+    flat = sorted((a, -b, name) for name, found in spans.items() for a, b in found)
+    standalone: set[str] = set()
+    earlier: list[tuple[int, str]] = []  # best ends among mentions that start before the current position
+    i = 0
+    while i < len(flat):
+        j = i
+        while j < len(flat) and flat[j][0] == flat[i][0]:
+            j += 1
+        same_start: list[tuple[int, str]] = []  # same start, longer mentions first
+        for _, neg_end, name in flat[i:j]:
+            end = -neg_end
+            if _best(earlier, name) >= end or _best(same_start, name) > end:
+                _push(same_start, end, name)
+                continue
+            standalone.add(name)
+            _push(same_start, end, name)
+        for end, name in same_start:
+            _push(earlier, end, name)
+        i = j
+    return standalone
+
+
 def find_skills(text: str) -> list[str]:
     """Skills mentioned in `text`, canonical names, in taxonomy order. Precision over recall.
 
@@ -294,15 +338,5 @@ def find_skills(text: str) -> list[str]:
         found = [m.span() for pat in (strong, weak) if pat for m in pat.finditer(body)]
         if found:
             spans[skill.name] = found
-    keep = []
-    for skill, _, _ in _PATTERNS:
-        mine = spans.get(skill.name)
-        if not mine:
-            continue
-        others = [sp for name, sps in spans.items() if name != skill.name for sp in sps]
-        standalone = [
-            (a, b) for a, b in mine if not any(oa <= a and b <= ob and (ob - oa) > (b - a) for oa, ob in others)
-        ]
-        if standalone:
-            keep.append(skill.name)
-    return keep
+    keep = _standalone(spans)
+    return [skill.name for skill, _, _ in _PATTERNS if skill.name in keep]

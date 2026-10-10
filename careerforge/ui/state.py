@@ -31,6 +31,7 @@ TRACKER, USER_KEYS, AI_CALLS, MEMO, TAILORED, LAST_INGEST = (
     "tailored",
     "ingest",
 )
+OWN_CLIENT = "_own_client"
 DEFAULT_AI_LIMIT = 30
 _KEY_NAMES = (
     "GEMINI_API_KEY", "GROQ_API_KEY", "CAREERFORGE_GEMINI_MODELS", "CAREERFORGE_GROQ_MODELS",
@@ -163,6 +164,7 @@ def user_keys() -> dict[str, str]:
 def set_user_keys(gemini: str, groq: str) -> None:
     keys = {k: v.strip() for k, v in (("GEMINI_API_KEY", gemini), ("GROQ_API_KEY", groq)) if v and v.strip()}
     st.session_state[USER_KEYS] = keys
+    st.session_state.pop(OWN_CLIENT, None)
     st.session_state.pop("_client_error", None)
 
 
@@ -180,8 +182,7 @@ def ai_settings() -> AISettings:
     return load_settings(merged, env={})
 
 
-@st.cache_resource(ttl=3600, show_spinner=False, max_entries=8)
-def _cached_client(gemini: str, groq: str, gem_models: str, groq_models: str, gem_url: str, groq_url: str) -> AIClient:
+def _build_client(gemini: str, groq: str, gem_models: str, groq_models: str, gem_url: str, groq_url: str) -> AIClient:
     settings = AISettings(
         gemini_api_key=gemini,
         groq_api_key=groq,
@@ -193,16 +194,25 @@ def _cached_client(gemini: str, groq: str, gem_models: str, groq_models: str, ge
     return build_client(settings)
 
 
+@st.cache_resource(ttl=3600, show_spinner=False, max_entries=4)
+def _cached_client(gemini: str, groq: str, gem_models: str, groq_models: str, gem_url: str, groq_url: str) -> AIClient:
+    return _build_client(gemini, groq, gem_models, groq_models, gem_url, groq_url)
+
+
 def ai_configured() -> bool:
     return ai_settings().configured
 
 
 def ai_client() -> AIClient | None:
-    """A ready client, or None when no key is configured. Raises only on genuinely broken configuration."""
+    """A ready client, or None when no key is configured.
+
+    The site owner's client is shared by all visitors (cached for an hour). A visitor's own key is NEVER put into that
+    shared cache: their client lives in their session only and disappears with it.
+    """
     s = ai_settings()
     if not s.configured:
         return None
-    return _cached_client(
+    args = (
         s.gemini_api_key,
         s.groq_api_key,
         ",".join(s.gemini_models),
@@ -210,6 +220,13 @@ def ai_client() -> AIClient | None:
         s.gemini_base_url or "",
         s.groq_base_url or "",
     )
+    if not using_own_keys():
+        return _cached_client(*args)
+    held = st.session_state.get(OWN_CLIENT)
+    if held is None or held[0] != args:
+        held = (args, _build_client(*args))
+        st.session_state[OWN_CLIENT] = held
+    return held[1]
 
 
 def ai_limit() -> int:

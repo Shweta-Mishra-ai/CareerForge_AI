@@ -18,14 +18,12 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from careerforge.ats.match import experience_months
 from careerforge.models import Profile
 from careerforge.readiness import NotReady, Readiness, check
-from careerforge.render.cv import _env
+from careerforge.render.cv import CSP, _env
 from careerforge.render.options import RenderOptions
 from careerforge.render.themes import THEMES, with_accent
 from careerforge.render.view import build_blocks, contact_items, meta_description
 from careerforge.text import normalize_url
 
-# a plain-text version of what the CSP below allows: inline CSS only, nothing fetched from anywhere
-CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"
 PORTFOLIO_SECTIONS = ("about", "projects", "experience", "skills", "education", "certifications", "languages")
 _TITLES = {
     "about": "About",

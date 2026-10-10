@@ -4,6 +4,7 @@ import random
 import re
 
 import pytest
+from e2e_support import FIXTURES
 from test_grounding import faithful_standard
 from test_render_cv import fresher, ready
 
@@ -342,3 +343,226 @@ def test_round_trip_for_a_fresher_cv():
         (e.degree, e.institution, e.grade) for e in original.education
     ]
     assert re.sub(r"\W", "", p.name) == re.sub(r"\W", "", original.name)
+
+
+# ── PDFs made by a real word processor (Word-style documents converted with LibreOffice) ──────────────────────
+# The fixtures were produced by python-docx + LibreOffice, i.e. by software other than our own renderer.
+
+
+def pdf_fixture(name):
+    return (FIXTURES / name).read_bytes()
+
+
+class TestRealWordProcessorPdfs:
+    def read(self, name):
+        res = ingest_upload(name, pdf_fixture(name), None)
+        assert res.grounding.findings == ()
+        return res.profile
+
+    def test_single_column_with_tab_aligned_dates(self):
+        p = self.read("real_word_classic.pdf")
+        assert (p.name, p.headline, p.contact.location) == ("Rahul Verma", "Data Analyst", "Pune, India")
+        assert [(e.title, e.company, e.dates.display(), len(e.bullets)) for e in p.experience] == [
+            ("Senior Data Analyst", "RetailCo", "Jan 2022 – Present", 2),
+            ("Data Analyst", "FinServe", "Jun 2019 – Dec 2021", 2),
+        ]
+        assert [(e.degree, e.institution, e.dates.display()) for e in p.education] == [
+            ("B.Sc. Statistics", "Savitribai Phule Pune University", "2015 – 2018")
+        ]
+        assert p.skills == ["SQL", "Power BI", "Python", "Pandas", "Excel", "Tableau"]
+        assert [c.name for c in p.certifications] == ["Microsoft Power BI Data Analyst"]
+
+    def test_two_column_table_with_the_name_after_the_sidebar(self):
+        p = self.read("real_word_sidebar_table.pdf")
+        assert (p.name, p.headline) == ("Sneha Iyer", "Product Designer")
+        assert p.languages == ["English", "Tamil", "Hindi"]  # the name did not leak into the languages
+        assert p.skills == ["Figma", "User Research", "Prototyping", "HTML/CSS", "Accessibility"]
+        assert [(e.title, e.company, e.dates.display()) for e in p.experience] == [
+            ("Product Designer", "Northwind Apps", "2021 – Present"),
+            ("UI Designer", "PixelCraft", "2018 – 2021"),
+        ]
+        assert [(e.degree, e.institution, e.dates.display()) for e in p.education] == [
+            ("B.Des Communication Design", "NID Ahmedabad", "2014 – 2018")  # the range was wrapped over two lines
+        ]
+        assert p.contact.email == "sneha.iyer@gmail.com" and p.contact.location == "Chennai, India"
+
+    def test_company_line_with_place_then_title_and_numeric_dates(self):
+        p = self.read("real_word_company_first.pdf")
+        assert p.name == "Priyanka Sharma" and p.contact.location == "Delhi"
+        assert [(e.title, e.company, e.location, e.dates.display()) for e in p.experience] == [
+            ("Marketing Manager", "Globex Corporation", "Delhi, India", "Mar 2020 – Present"),
+            ("Marketing Executive", "Initech", "Mumbai, India", "Jul 2017 – Feb 2020"),
+        ]
+        assert [(e.degree, e.institution) for e in p.education] == [
+            ("MBA, Marketing", "Symbiosis Institute of Business Management"),
+            ("B.Com", "Delhi University"),
+        ]
+        assert p.skills == ["SEO", "Email Marketing", "Google Analytics", "Canva", "Content Strategy", "HubSpot"]
+
+
+class TestNewReaderRules:
+    def test_a_date_range_wrapped_over_two_lines_is_joined(self):
+        p, _ = read_cv("Sam Lee\nsam@gmail.com\n\nEDUCATION\nBSc Physics, State University, 2014 –\n2018")
+        assert p.education[0].dates.display() == "2014 – 2018"
+
+    def test_a_trailing_dash_is_only_joined_to_a_following_date(self):
+        p, _ = read_cv("Sam Lee\nsam@gmail.com\n\nSUMMARY\nI work on things -\nPython and Go projects")
+        assert p.summary == "I work on things - Python and Go projects"
+
+    def test_headline_comes_from_the_first_cell_of_a_contact_line(self):
+        p, _ = read_cv("Sam Lee\nBackend Engineer | sam@gmail.com | +91 98765 43210 | Pune")
+        assert (p.headline, p.contact.location) == ("Backend Engineer", "Pune")
+
+    def test_a_contact_cell_is_never_taken_as_the_headline(self):
+        p, _ = read_cv("Sam Lee\nsam@gmail.com | github.com/sam | Pune, India")
+        assert p.headline == "" and p.contact.location == "Pune, India"
+
+    def test_contact_section_supplies_a_location(self):
+        p, _ = read_cv("Sam Lee\n\nCONTACT\nsam@gmail.com\nLisbon\n\nSKILLS\nPython")
+        assert p.contact.location == "Lisbon" and p.skills == ["Python"]
+
+    def test_the_name_rescue_never_overrides_a_name_that_was_found(self):
+        p, _ = read_cv(
+            "Sam Lee\nsam@gmail.com\n\nLANGUAGES\nEnglish\nMaria Gonzalez\nSpanish Teacher\n\nSKILLS\nPython"
+        )
+        assert p.name == "Sam Lee" and "Maria Gonzalez" in p.languages
+
+    def test_the_name_rescue_needs_the_pair_to_close_a_section_and_not_be_a_known_skill(self):
+        # not the last two lines of the section
+        p, _ = read_cv("\nSKILLS\nPython\nMaria Gonzalez\nSpanish Teacher\nGo\n\nEXPERIENCE\nDev - Co (2020 - 2021)")
+        assert p.name == ""
+        # a known skill is never a name
+        q, _ = read_cv("\nSKILLS\nProject Management\nData Analysis\n\nEXPERIENCE\nDev - Co (2020 - 2021)")
+        assert q.name == "" and q.skills == ["Project Management", "Data Analysis"]
+
+    def test_company_place_split_only_when_the_right_side_is_a_place(self):
+        p, _ = read_cv("Sam\nEXPERIENCE\nGlobex - Delhi, India\nManager    2020 - 2021\n- Did work here.\n")
+        assert (p.experience[0].company, p.experience[0].location) == ("Globex", "Delhi, India")
+        q, _ = read_cv("Sam\nEXPERIENCE\nAcme - Data Platform Team\nManager    2020 - 2021\n- Did work here.\n")
+        assert q.experience[0].company == "Acme - Data Platform Team" and q.experience[0].location == ""
+
+    @pytest.mark.parametrize(
+        "degree",
+        ["B.Des Communication Design", "M.Des", "BFA Painting", "PGDM Marketing", "B.Pharm", "M.Ed Curriculum"],
+    )
+    def test_more_degree_names_are_recognised(self, degree):
+        p, _ = read_cv(f"Sam\nEDUCATION\nSome Place, {degree}, 2019")
+        assert p.education[0].degree == degree
+
+    def test_unrecognised_education_parts_are_assigned_in_the_usual_order(self):
+        p, _ = read_cv("Sam\nEDUCATION\nHonours Programme in Design, Northern Hall, Oslo, 2019")
+        e = p.education[0]
+        assert (e.degree, e.institution, e.location) == ("Honours Programme in Design", "Northern Hall", "Oslo")
+
+    def test_a_job_title_at_the_end_of_a_sidebar_section_is_not_taken_for_a_name(self):
+        p, _ = read_cv(
+            "\nLANGUAGES\nEnglish\nSpanish Teacher\nOnline Language Instructor\n\nEXPERIENCE\nDev - Co (2020 - 2021)"
+        )
+        assert p.name == "" and "Spanish Teacher" in p.languages
+
+    def test_the_headline_under_a_rescued_name_must_look_like_a_headline(self):
+        p, _ = read_cv("\nLANGUAGES\nEnglish\nMaria Gonzalez\nHindi\n\nEXPERIENCE\nDev - Co (2020 - 2021)")
+        assert p.name == "" and p.languages == ["English", "Maria Gonzalez", "Hindi"]
+
+
+class TestLinkedInStylePdf:
+    """A document laid out like LinkedIn's 'Save to PDF' (sidebar first; company, title, then dates with a duration).
+
+    The sample was composed from knowledge of that layout, NOT exported from a real account: treat it as a regression
+    guard for the layout, not as proof about every real export.
+    """
+
+    def profile(self):
+        res = ingest_upload("l.pdf", pdf_fixture("real_linkedin_style.pdf"), None)
+        assert res.grounding.findings == ()
+        return res.profile
+
+    def test_identity_comes_from_after_the_sidebar(self):
+        p = self.profile()
+        assert (p.name, p.headline) == ("Rahul Verma", "Senior Data Analyst at RetailCo")
+        assert p.contact.location == "Pune, Maharashtra, India" and p.contact.email == "rahul.verma@gmail.com"
+        assert p.contact.linkedin == "https://www.linkedin.com/in/rahul-verma-demo"
+
+    def test_company_then_title_then_dates_with_duration_and_a_location_line(self):
+        p = self.profile()
+        assert [(e.title, e.company, e.location, e.dates.display(), e.bullets) for e in p.experience] == [
+            (
+                "Senior Data Analyst",
+                "RetailCo",
+                "Pune, Maharashtra, India",
+                "Jan 2022 – Present",
+                [
+                    "Built 12 Power BI dashboards used by 40 managers.",
+                    "Automated weekly reporting in Python, saving 6 hours per week.",
+                ],
+            ),
+            (
+                "Data Analyst",
+                "FinServe",
+                "Mumbai, Maharashtra, India",
+                "Jun 2019 – Dec 2021",
+                ["Wrote SQL queries over 50M rows to detect fraud patterns."],
+            ),
+        ]
+
+    def test_education_over_two_lines_keeps_the_whole_degree(self):
+        p = self.profile()
+        assert [(e.degree, e.institution, e.dates.display()) for e in p.education] == [
+            ("Bachelor of Science - BS, Statistics", "Savitribai Phule Pune University", "2015 – 2018")
+        ]
+
+    def test_top_skills_are_extended_with_skills_the_document_itself_uses_and_awards_are_not_certifications(self):
+        p = self.profile()
+        assert p.skills[:3] == ["SQL", "Power BI", "Python"]
+        assert [c.name for c in p.certifications] == [
+            "Microsoft Power BI Data Analyst",
+            "Google Data Analytics Certificate",
+        ]
+        assert p.languages == ["English (Native or Bilingual)", "Hindi (Full Professional)"]
+        assert "Employee of the Year" not in p.model_dump_json()
+
+    def test_duration_text_is_never_taken_for_a_company_or_title(self):
+        p, _ = read_cv(
+            "Sam\n\nEXPERIENCE\nAcme\nEngineer\nMarch 2020 - Present (5 years 7 months)\nPune, India\n- Did it."
+        )
+        e = p.experience[0]
+        assert (e.title, e.company, e.location) == ("Engineer", "Acme", "Pune, India")
+        assert "years" not in p.model_dump_json()
+
+    def test_two_plain_lines_before_a_date_are_only_a_company_and_title_when_one_looks_like_a_title(self):
+        text = "Sam\n\nEXPERIENCE\nAcme\nEngineer\n2020 - 2021\n- First.\nLed migration of services\nWrote the docs\n2018 - 2019\n"
+        first, second = read_cv(text)[0].experience
+        assert (first.title, first.company) == ("Engineer", "Acme")
+        assert first.bullets == ["First.", "Led migration of services"]  # a plain line stays a bullet of its own job
+        assert "Led migration of services" not in f"{second.title}{second.company}"
+
+    def test_a_name_followed_by_more_than_a_headline_and_a_place_is_not_a_rescued_name(self):
+        text = "\nLANGUAGES\nEnglish\nMaria Gonzalez\nProduct Designer\nPune, India\nHindi\n\nEXPERIENCE\nDev - Co (2020 - 2021)"
+        p, _ = read_cv(text)
+        assert p.name == "" and "Maria Gonzalez" in p.languages and "Hindi" in p.languages
+
+    def test_top_skills_are_extended_only_for_linkedin_style_documents(self):
+        body = "EXPERIENCE\nDev - Co (2020 - 2021)\n- Deployed services with Docker and Kubernetes.\n"
+        linkedin, _ = read_cv(f"Sam Lee\nsam@gmail.com\n\nTop Skills\nSQL\n\n{body}")
+        plain, _ = read_cv(f"Sam Lee\nsam@gmail.com\n\nSKILLS\nSQL\n\n{body}")
+        assert linkedin.skills == ["SQL", "Docker", "Kubernetes"] and plain.skills == ["SQL"]
+
+
+class TestBounds:
+    def test_a_run_of_blank_lines_is_one_separator_and_does_not_hide_content(self):
+        p, _ = read_cv("Sam Lee\nsam@gmail.com" + "\n" * 50_000 + "SKILLS\nPython")
+        assert p.name == "Sam Lee" and p.skills == ["Python"]
+
+    def test_absurd_line_counts_are_cut_with_a_note(self):
+        p, notes = read_cv("SKILLS\nPython\n" + "x\n" * 20_000)
+        assert "Python" in p.skills  # the first part was read
+        assert any("very long" in n for n in notes)
+
+    def test_a_long_paragraph_on_one_line_is_still_read_as_a_summary(self):
+        sentence = "Backend engineer who builds reliable payment systems. "
+        p, _ = read_cv(f"Sam Lee\nsam@gmail.com\n\nSUMMARY\n{sentence * 20}\n\nSKILLS\nPython")
+        assert p.summary == (sentence * 20).strip() and p.skills == ["Python"]  # re-joined at the original spaces
+
+    def test_a_token_without_spaces_longer_than_a_line_is_split_not_dropped(self):
+        p, _ = read_cv("Sam Lee\nsam@gmail.com\n\nSUMMARY\n" + "a" * 1000)
+        assert len(p.summary.replace(" ", "")) == 1000

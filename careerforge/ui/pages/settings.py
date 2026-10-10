@@ -53,7 +53,11 @@ def render() -> None:
             st.error(explain(exc), icon=":material/error:")
         else:
             st.success(f"Working. Answered by {done.provider} / {done.model}.", icon=":material/check_circle:")
-    client = state.ai_client()
+    try:
+        client = state.ai_client()
+    except Exception as exc:  # noqa: BLE001
+        st.error(explain(exc), icon=":material/error:")
+        return
     if client is not None:
         with st.expander("Models in use"):
             for route in client.routes:

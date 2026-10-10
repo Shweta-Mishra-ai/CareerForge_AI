@@ -115,7 +115,7 @@ def _compare_view(profile: Profile) -> None:
             for name, r in rows
         ]
     )
-    st.dataframe(frame, hide_index=True, use_container_width=True)
+    st.dataframe(frame, hide_index=True, width="stretch")
 
 
 def _semantic_view(profile: Profile, job: str, report: AtsReport) -> None:

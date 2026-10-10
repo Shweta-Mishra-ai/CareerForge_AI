@@ -103,7 +103,7 @@ def download(label: str, data: str | bytes, file_name: str, mime: str, *, key: s
         key=key,
         type="primary" if primary else "secondary",
         icon=":material/download:",
-        use_container_width=True,
+        width="stretch",
     )
 
 

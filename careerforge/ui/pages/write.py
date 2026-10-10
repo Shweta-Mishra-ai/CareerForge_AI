@@ -45,8 +45,8 @@ def _letter(profile, job: str, company: str) -> None:
     addressee = st.text_input("Addressed to", value="Hiring Manager", key="letter-to")
     if st.button("Write my cover letter", type="primary", key="letter-go"):
         try:
-            client = state.charge_ai()
             with st.spinner("Writing..."):
+                client = state.charge_ai()
                 draft = write_cover_letter(
                     client, profile.exportable(), job, company=company, addressee=addressee or "Hiring Manager"
                 )
@@ -90,8 +90,8 @@ def _interview(profile, job: str) -> None:
         return
     if st.button("Prepare my interview questions", type="primary", key="interview-go"):
         try:
-            client = state.charge_ai()
             with st.spinner("Preparing..."):
+                client = state.charge_ai()
                 prep = prepare_interview(client, profile.exportable(), job, report)
         except Exception as exc:  # noqa: BLE001
             st.error(explain(exc), icon=":material/error:")

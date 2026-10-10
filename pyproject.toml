@@ -1,6 +1,6 @@
 [project]
 name = "careerforge-ai"
-version = "0.2.0.dev0"
+version = "0.2.0"
 description = "ATS-aware CV, portfolio and job-application toolkit"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -21,8 +21,15 @@ ignore = ["S101"]  # asserts are fine; tests use them
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
 markers = [
-    "e2e: browser tests (Playwright); need a running app and Chromium",
-    "visual: screenshot/PDF baseline comparisons",
+    "e2e: browser tests (Playwright); start their own Streamlit server and need Chromium",
     "live: touches real provider APIs; needs keys, run manually",
 ]
 xfail_strict = true
+
+[tool.coverage.run]
+source = ["careerforge"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 95  # measured: 97 at the time of writing; lower only with a reason

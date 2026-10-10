@@ -14,7 +14,7 @@ from careerforge.ui.widgets import ai_status_badge, download, safe_file_stem
 
 st.set_page_config(
     page_title="CareerForge AI",
-    page_icon=":material/work:",
+    page_icon="📄",  # an emoji needs no request; Material icons would be fetched from a Google CDN
     layout="wide",
     initial_sidebar_state="auto",
 )
@@ -32,6 +32,7 @@ PAGES = {
     ],
     "Deliver": [
         st.Page(P + "export.py", title="CV & portfolio", icon=":material/description:", url_path="export"),
+        st.Page(P + "linkedin.py", title="LinkedIn profile", icon=":material/badge:", url_path="linkedin"),
         st.Page(P + "write.py", title="Letters & interviews", icon=":material/mail:", url_path="write"),
     ],
     "Apply": [

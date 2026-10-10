@@ -1,6 +1,7 @@
 import pytest
 
 from careerforge import skills
+from careerforge.skills import find_skills
 
 
 class TestFindSkills:
@@ -127,3 +128,55 @@ class TestImplication:
         for source, targets in skills.IMPLIES.items():
             assert source in skills.KNOWN_NAMES, source
             assert all(t in skills.KNOWN_NAMES and t != source for t in targets), (source, targets)
+
+
+# ── the containment rule is implemented as a sweep; it must agree with the obvious (quadratic) definition ──────
+
+
+def _reference_standalone(spans):
+    """The definition, written the slow obvious way."""
+    keep = set()
+    for name, mine in spans.items():
+        others = [sp for other, sps in spans.items() if other != name for sp in sps]
+        if any(not any(oa <= a and b <= ob and (ob - oa) > (b - a) for oa, ob in others) for a, b in mine):
+            keep.add(name)
+    return keep
+
+
+def test_sweep_matches_the_definition_on_random_overlapping_mentions():
+    import random
+
+    from careerforge.skills import _standalone
+
+    rng = random.Random(11)
+    for _ in range(3000):
+        spans = {}
+        for name in rng.sample("ABCDEFG", rng.randint(1, 6)):
+            found = []
+            for _ in range(rng.randint(1, 5)):
+                a = rng.randint(0, 25)
+                found.append((a, a + rng.randint(1, 8)))
+            spans[name] = found
+        assert _standalone(spans) == _reference_standalone(spans), spans
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("We use GitHub Actions for CI", {"GitHub Actions"}),
+        ("GitHub Actions and GitHub", {"GitHub Actions", "GitHub"}),
+        ("Spring Boot", {"Spring Boot"}),
+    ],
+)
+def test_nested_names_are_still_counted_once(text, expected):
+    assert expected <= set(find_skills(text)) and (("GitHub" in find_skills(text)) == ("GitHub" in expected))
+
+
+def test_a_huge_document_is_processed_in_linear_time():
+    import time
+
+    text = "Built pipelines with GitHub Actions, Docker and Kubernetes. " * 10000  # about 600 KB, 30,000 mentions
+    start = time.perf_counter()
+    found = find_skills(text)
+    elapsed = time.perf_counter() - start
+    assert sorted(found) == ["Docker", "GitHub Actions", "Kubernetes"] and elapsed < 15  # was minutes when quadratic

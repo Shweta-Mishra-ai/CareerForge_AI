@@ -12,7 +12,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
-from weasyprint import HTML, URLFetcher
 
 from careerforge.ats.checks import ParseResult, check_pdf
 from careerforge.models import Profile
@@ -21,6 +20,9 @@ from careerforge.render.options import DENSITY, FONT_STACKS, RenderOptions
 from careerforge.render.view import build_blocks, contact_items, meta_description, short_url
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
+# The CV needs inline CSS and nothing else: no scripts, images, fonts or network. Also protects the Streamlit page
+# that embeds the preview if an escaping bug ever let markup through.
+CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"
 SIDEBAR_SECTIONS = frozenset({"skills", "languages", "certifications"})
 
 
@@ -59,6 +61,7 @@ def _render(profile: Profile, options: RenderOptions, *, draft: bool) -> str:
             contact=contact_items(profile.contact),
             description=meta_description(profile.summary, profile.headline, profile.name),
             draft=draft,
+            csp=CSP,
         )
     )
 
@@ -76,8 +79,23 @@ def render_cv_html(profile: Profile, options: RenderOptions | None = None) -> st
     return _render(require_ready(profile), options or RenderOptions(), draft=False)
 
 
-# Allows no protocol at all: a CV never needs an external image, stylesheet or font, so none is ever fetched.
-NO_FETCH = URLFetcher(allowed_protocols=())
+class PdfEngineUnavailable(RuntimeError):
+    """The PDF engine (WeasyPrint and the Pango library it needs) cannot be loaded on this machine."""
+
+
+@lru_cache(maxsize=1)
+def _pdf_engine():
+    """(HTML class, a fetcher that allows no protocol at all). A CV never needs an external image, stylesheet or
+    font, so none is ever fetched. Imported lazily: without Pango the import fails, and that must only disable the
+    PDF export, not the app."""
+    try:
+        from weasyprint import HTML, URLFetcher
+    except (OSError, ImportError) as exc:
+        raise PdfEngineUnavailable(
+            "PDF export needs the Pango text library, which is not available on this machine. Word, text and "
+            "HTML exports still work. See docs/DEPLOY.md (hosting) or the README (installing locally)."
+        ) from exc
+    return HTML, URLFetcher(allowed_protocols=())
 
 
 @dataclass(frozen=True)
@@ -92,8 +110,9 @@ def render_cv_pdf(profile: Profile, options: RenderOptions | None = None) -> Pdf
     """PDF via WeasyPrint, then re-read with the ATS parser so the user sees how it extracts."""
     options = options or RenderOptions()
     exportable = require_ready(profile)
+    html_class, no_fetch = _pdf_engine()
     html = _render(exportable, options, draft=False)
-    document = HTML(string=html, url_fetcher=NO_FETCH).render()
+    document = html_class(string=html, url_fetcher=no_fetch).render()
     data = document.write_pdf()
     parse = check_pdf(data, exportable)
     warnings = []

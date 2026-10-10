@@ -27,8 +27,8 @@ def _finish(result: IngestResult, *, tracker: Tracker | None = None) -> None:
 
 def _read(name: str, data: bytes, *, use_ai: bool) -> None:
     try:
-        client = state.charge_ai() if use_ai else None
         with st.spinner("Reading your document..."):
+            client = state.charge_ai() if use_ai else None
             result = ingest_upload(name, data, client)
             tracker = load_file(data)[1] if result.source == "profile_json" else None
     except (AIError, AIBudgetExceeded) as exc:

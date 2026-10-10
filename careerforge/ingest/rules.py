@@ -36,6 +36,7 @@ HEADINGS: dict[str, tuple[str, ...]] = {
     "skills": (
         "skills", "technical skills", "core competencies", "key skills", "skills and tools", "skills & tools",
         "technologies", "tools", "expertise", "areas of expertise", "technical expertise", "core skills",
+        "top skills",
     ),
     "projects": ("projects", "personal projects", "academic projects", "selected projects", "key projects"),
     "certifications": (
@@ -43,10 +44,12 @@ HEADINGS: dict[str, tuple[str, ...]] = {
         "courses", "training", "certifications & courses", "certifications and courses",
     ),
     "languages": ("languages", "spoken languages", "language skills"),
+    "contact": ("contact", "contact details", "contact information", "contact me", "get in touch"),
     "ignore": (
         "references", "hobbies", "interests", "declaration", "achievements", "awards", "publications",
         "volunteering", "extracurricular", "extracurricular activities", "personal details", "personal information",
-        "awards and achievements", "honors", "honours", "links found in the document",
+        "awards and achievements", "honors", "honours", "links found in the document", "honors awards",
+        "organizations", "volunteer experience", "recommendations", "patents", "test scores", "causes",
     ),
 }  # fmt: skip
 _HEADING_LOOKUP = {alias: section for section, aliases in HEADINGS.items() for alias in aliases}
@@ -58,6 +61,7 @@ _MONTH = (
 _DATE = rf"(?:{_MONTH}\.?,?\s+(?:19|20)\d{{2}}|\d{{1,2}}/(?:19|20)\d{{2}}|(?:19|20)\d{{2}}-\d{{2}}|(?:19|20)\d{{2}})"
 _NOW = r"(?:Present|Current|Now|Ongoing|Till\s+date|To\s+date|Today)"
 _RANGE = re.compile(rf"{_DATE}\s*(?:-|–|—|to|until)\s*(?:{_DATE}|{_NOW})(?![\w])", re.I)
+_DURATION = re.compile(r"\(\s*\d+\s*(?:years?|yrs?|months?|mos?)(?:\s+\d+\s*(?:months?|mos?))?\s*\)", re.I)
 _YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 _BULLET = re.compile(r"^\s*(?:[-•*▪‣◦●·–—➢►]|•)\s+(.*\S)\s*$")
 _URL = re.compile(r"(?:https?://|www\.)[^\s,;)]+|\b(?:github|gitlab)\.com/[^\s,;)]+", re.I)
@@ -67,7 +71,8 @@ _GRADE = re.compile(
     re.I,
 )
 _DEGREE = re.compile(
-    r"\b(?:b\.?\s?tech|m\.?\s?tech|b\.?\s?e\.?|m\.?\s?e\.?|b\.?\s?sc|m\.?\s?sc|b\.?\s?a\.?|m\.?\s?a\.?|b\.?\s?com|"
+    r"\b(?:b\.?\s?des|m\.?\s?des|bfa|mfa|b\.?\s?pharm|m\.?\s?pharm|b\.?\s?ed|m\.?\s?ed|pgdm|pg diploma|post ?graduate|"
+    r"b\.?\s?tech|m\.?\s?tech|b\.?\s?e\.?|m\.?\s?e\.?|b\.?\s?sc|m\.?\s?sc|b\.?\s?a\.?|m\.?\s?a\.?|b\.?\s?com|"
     r"m\.?\s?com|bca|mca|bba|mba|llb|llm|mbbs|b\.?\s?arch|bachelor|master|ph\.?\s?d|doctorate|diploma|associate "
     r"degree|high school|secondary school|senior secondary|hsc|ssc|class (?:x|xii|10|12)|10th|12th|intermediate)\b",
     re.I,
@@ -87,7 +92,7 @@ _TECH_LABEL = re.compile(
 )
 _NOT_NAMES = {"curriculum vitae", "resume", "résumé", "cv", "profile", "contact", "summary", "page"}
 _SPACED = re.compile(r"^(?:\S\s){2,}\S$")
-_CONTACT_SPLIT = re.compile(r"\s*[|•·▪]\s*")
+_CONTACT_SPLIT = re.compile(r"[|•·▪]")  # (no \s* around it: that is quadratic on long whitespace runs)
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _PHONE = re.compile(r"(?<![\w/])\+?\d[\d\s().-]{8,}\d(?![\w/])")
 _LINKEDIN = re.compile(r"(?:https?://)?(?:[\w]+\.)?linkedin\.com/in/[\w\-%]+/?", re.I)
@@ -126,6 +131,26 @@ def heading_of(line: str) -> str | None:
         return None
     key = re.sub(r"\s+", " ", re.sub(r"[^A-Za-z&\s]", " ", text)).strip().lower()
     return _HEADING_LOOKUP.get(key)
+
+
+def _merge_wrapped_dates(lines: list[str]) -> list[str]:
+    """'... 2014 –' followed by '2018' on the next line is one date range that the PDF happened to wrap."""
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if re.search(r"[–—-]\s*$", line) and re.match(rf"(?:{_DATE}|{_NOW})\b", nxt, re.I) and _has_year(line):
+            out.append(f"{line.rstrip()} {nxt}")
+            i += 2
+        else:
+            out.append(line)
+            i += 1
+    return out
+
+
+def _has_year(text: str) -> bool:
+    return bool(_YEAR.search(text))
 
 
 def _split_sections(lines: list[str]) -> tuple[list[str], dict[str, list[str]]]:
@@ -202,7 +227,7 @@ def _tidy_name(name: str, notes: _Notes) -> str:
 
 
 def _contact_parts(line: str) -> list[str]:
-    return [p for p in _CONTACT_SPLIT.split(line) if p.strip()]
+    return [p.strip() for p in _CONTACT_SPLIT.split(line) if p.strip()]
 
 
 def _is_contact_text(part: str) -> bool:
@@ -218,6 +243,40 @@ def _is_contact_text(part: str) -> bool:
     )
 
 
+def _rescue_name(
+    lines: list[str], sections: dict[str, list[str]], notes: _Notes, headline: str
+) -> tuple[str, str, str]:
+    """Two-column CVs (and LinkedIn PDFs) are read sidebar first, so the name ends up at the end of the last sidebar
+    section, followed by the headline and often a place. Take a name-like line plus one headline-like line (plus an
+    optional place) that close a section, and remove them from it. Returns (name, headline, location)."""
+    for key, body in sections.items():
+        if key in ("experience", "projects", "education", "summary"):
+            continue  # long-form sections never hold a stray name
+        entries = [(i, ln.strip()) for i, ln in enumerate(body) if ln.strip()]
+        for pos in range(len(entries) - 1):
+            i, text = entries[pos]
+            tail = [t for _, t in entries[pos + 1 :]]
+            if len(tail) > 2 or not _name_candidate(text):
+                continue
+            nxt = tail[0]
+            place = tail[1] if len(tail) == 2 else ""
+            if not (_TITLE.search(nxt) or len(nxt.split()) >= 2) or len(nxt) > 80 or not _plausible_headline(nxt):
+                continue
+            if place and not (_looks_like_place(place) or _looks_like_city(place)):
+                continue
+            last = entries[pos + len(tail)][0]
+            del body[i : last + 1]
+            notes.add("The name was found after the sidebar (two-column layout). Check the order of your details.")
+            return _tidy_name(text, notes), headline or nxt, place
+    return "", headline, ""
+
+
+def _name_candidate(text: str) -> bool:
+    return (
+        _looks_like_name(text) and not _TITLE.search(text) and not taxonomy.lookup(text)
+    )  # "Spanish Teacher" is a job
+
+
 def _parse_header(head: list[str], notes: _Notes) -> tuple[str, str, str]:
     """(name, headline, location) from the lines above the first section heading."""
     lines = [re.split(r"\s{3,}", ln.strip())[0] for ln in head if ln.strip()]  # a 2-column page: first column only
@@ -229,22 +288,40 @@ def _parse_header(head: list[str], notes: _Notes) -> tuple[str, str, str]:
         parts = _contact_parts(line)
         if any(_is_contact_text(p) for p in parts) and len(parts) > 1:
             for part in parts:
-                if not location and _looks_like_place(part):
+                if _is_contact_text(part):
+                    continue
+                if not location and (_looks_like_place(part) or _looks_like_city(part)):
                     location = part.strip()
+                elif not headline and _plausible_headline(part):
+                    headline = part.strip()  # "Data Analyst | me@mail.com | Pune": the first cell is the headline
             continue
         if _is_contact_text(line):
             continue
         if _looks_like_place(line) and not _TITLE.search(line):
             location = location or line.strip()
-        elif (
-            not headline
-            and len(line) <= 80
-            and not re.search(r"[.!?]$", line)
-            and not line.endswith(":")
-            and not re.search(r"[<>{}\[\]]", line)  # markup or template syntax is not a headline
-        ):
+        elif not headline and _plausible_headline(line):
             headline = line
     return name, headline, location
+
+
+def _plausible_headline(text: str) -> bool:
+    t = text.strip()
+    return (
+        0 < len(t) <= 80
+        and not re.search(r"[.!?:]$", t)
+        and not re.search(r"[<>{}\[\]]", t)  # markup or template syntax is not a headline
+        and not _looks_like_name_only_place(t)
+    )
+
+
+def _looks_like_name_only_place(text: str) -> bool:
+    return _looks_like_place(text) or (_looks_like_city(text) and not _TITLE.search(text))
+
+
+def _looks_like_city(text: str) -> bool:
+    """One capitalised word (Pune, Delhi) or two (New York) in a contact line is a city."""
+    t = text.strip()
+    return bool(re.fullmatch(r"[A-Z][a-z]{2,20}(?: [A-Z][a-z]{2,20})?", t)) and not _TITLE.search(t)
 
 
 def _looks_like_place(text: str) -> bool:
@@ -279,6 +356,7 @@ def _contact(text: str) -> Contact:
 
 def _take_dates(text: str) -> tuple[str, DateRange]:
     """Remove the first date range (or, failing that, a lone year) from `text`; return the rest and the dates."""
+    text = _DURATION.sub(" ", text).strip()
     if m := _RANGE.search(text):
         try:
             start, end, current = parse_date_range(m.group(0))
@@ -333,6 +411,16 @@ def _title_company(parts: list[str], notes: _Notes) -> tuple[str, str, str]:
     return a, b, location
 
 
+def _split_company_place(company: str, location: str) -> tuple[str, str]:
+    """'Globex Corporation - Delhi, India' -> ('Globex Corporation', 'Delhi, India')."""
+    if location:
+        return company, location
+    parts = re.split(r"\s+[–—|-]\s+", company, maxsplit=1)
+    if len(parts) == 2 and (_looks_like_place(parts[1]) or _looks_like_city(parts[1])) and not _TITLE.search(parts[1]):
+        return parts[0].strip(), parts[1].strip()
+    return company, location
+
+
 def _is_detail_line(text: str) -> bool:
     return len(text) <= 90 and not re.search(r"[.!?]$", text) and len(text.split()) <= 12
 
@@ -354,7 +442,7 @@ def _fill_missing(entry: dict, text: str, notes: _Notes) -> None:
 def _parse_experience(lines: list[str], notes: _Notes) -> list[Experience]:
     items = _marked_with_headers(lines)
     entries: list[Experience] = []
-    pending_prefix = ""
+    pending: list[str] = []
     current: dict | None = None
 
     def flush() -> None:
@@ -366,19 +454,27 @@ def _parse_experience(lines: list[str], notes: _Notes) -> list[Experience]:
 
     for text, kind in items:
         if kind == "prefix":
-            pending_prefix = text
+            pending.append(text)
             continue
         if kind == "header":
             flush()
             rest, dates = _take_dates(text)
             parts = _split_parts(rest)
-            if pending_prefix and len(parts) <= 1:
-                parts = [pending_prefix, *parts]
-            pending_prefix = ""
+            if pending and len(parts) <= 1:
+                parts = [*pending, *parts]
+            pending = []
             title, company, location = _title_company(parts, notes)
+            company, location = _split_company_place(company, location)
             current = {"title": title, "company": company, "location": location, "dates": dates, "raw": []}
         elif current is not None:
             if (
+                kind == "text"
+                and not current["raw"]
+                and not current["location"]
+                and (_looks_like_place(text) or _looks_like_city(text))
+            ):
+                current["location"] = text  # LinkedIn prints the job's place on the line after the dates
+            elif (
                 kind == "text"
                 and not current["raw"]
                 and _is_detail_line(text)
@@ -392,29 +488,33 @@ def _parse_experience(lines: list[str], notes: _Notes) -> list[Experience]:
 
 
 def _marked_with_headers(lines: list[str]) -> list[tuple[str, str]]:
-    """Classify each non-empty line: header (has a date range), prefix (a short line right before a header),
-    bullet, or text."""
-    cleaned = [(ln, ln.strip()) for ln in lines]
-    out: list[tuple[str, str]] = []
-    for i, (raw, text) in enumerate(cleaned):
+    """Classify each non-empty line: header (has a date range), prefix (short lines right before a header: the
+    company, or company + title as LinkedIn writes them), bullet, or text."""
+    cleaned = [ln.strip() for ln in lines]
+    kinds: list[tuple[str, str]] = []  # (text, kind) for non-empty lines
+    for raw, text in zip(lines, cleaned, strict=True):
         if not text:
             continue
         if _bullet_text(raw) is not None:
-            out.append((raw, "bullet"))
+            kinds.append((_bullet_text(raw) or text, "bullet"))
         elif _has_range(text):
-            out.append((text, "header"))
+            kinds.append((text, "header"))
         else:
-            nxt = next((t for _, t in cleaned[i + 1 :] if t), "")
-            is_prefix = (
-                bool(nxt)
-                and _has_range(nxt)
-                and _bullet_text(nxt) is None
-                and len(text) <= 80
-                and not re.search(r"[.!?]$", text)
-            )
-            out.append((text, "prefix" if is_prefix else "text"))
-    # re-express bullets in the raw form `_join_wrapped` understands; text lines that follow keep their order
-    return [(t if k != "bullet" else (_bullet_text(t) or t), "bullet" if k == "bullet" else k) for t, k in out]
+            kinds.append((text, "text"))
+
+    def short(text: str) -> bool:
+        return len(text) <= 80 and not re.search(r"[.!?]$", text)
+
+    for h, (_, kind) in enumerate(kinds):
+        if kind != "header":
+            continue
+        one = kinds[h - 1] if h >= 1 else None
+        two = kinds[h - 2] if h >= 2 else None
+        if one and one[1] == "text" and short(one[0]) and not _has_range(one[0]):
+            if two and two[1] == "text" and short(two[0]) and (_TITLE.search(one[0]) or _TITLE.search(two[0])):
+                kinds[h - 2] = (two[0], "prefix")  # LinkedIn: company line, then title line, then the dates
+            kinds[h - 1] = (one[0], "prefix")
+    return kinds
 
 
 def _parse_education(lines: list[str], notes: _Notes) -> list[Education]:
@@ -434,8 +534,17 @@ def _parse_education(lines: list[str], notes: _Notes) -> list[Education]:
         block.append(raw)
     if block:
         blocks.append(block)
-    out: list[Education] = []
+    merged: list[list[str]] = []
     for blk in blocks:
+        text = " ".join(blk)
+        previous = " ".join(merged[-1]) if merged else ""
+        institution_only = bool(previous) and _INSTITUTION.search(previous) and not _DEGREE.search(previous)
+        if institution_only and _DEGREE.search(text) and not _INSTITUTION.search(text) and not _YEAR.search(previous):
+            merged[-1] = [*merged[-1], *blk]  # "State University" on one line, "BSc - Physics · (2015 - 2018)" next
+        else:
+            merged.append(blk)
+    out: list[Education] = []
+    for blk in merged:
         entry = _education_entry(blk)
         if entry:
             out.append(entry)
@@ -453,6 +562,12 @@ def _education_entry(block: list[str]) -> Education | None:
     for raw in block:
         bullet = _bullet_text(raw)
         (details if bullet is not None else head).append(bullet if bullet is not None else raw.strip())
+    degree_kept = ""
+    for k, line in enumerate(head):
+        left, dot, right = line.partition(" · ")
+        if dot and _DEGREE.search(left) and not _INSTITUTION.search(left):
+            degree_kept = left.strip()  # LinkedIn: "Bachelor of Science - BS, Statistics · (2015 - 2018)"
+            head[k] = right
     text = " | ".join(head)
     grade = ""
     if m := _GRADE.search(text):
@@ -462,7 +577,7 @@ def _education_entry(block: list[str]) -> Education | None:
     if dates.is_empty():
         text, year = _take_year(text)
         dates = DateRange(end=year) if year else DateRange()
-    degree = institution = location = ""
+    degree, institution, location = degree_kept, "", ""
     leftovers: list[str] = []
     for part in [p for chunk in text.split("|") for p in _split_parts(chunk.strip())]:
         part = _clean_edges(part)
@@ -474,9 +589,13 @@ def _education_entry(block: list[str]) -> Education | None:
             institution = part
         else:
             leftovers.append(part)
-    for part in leftovers:
-        if not institution:
+    for part in leftovers:  # "Degree, Institution, Place" is the usual order when nothing was recognised
+        if not degree and not institution:
+            degree = part
+        elif not institution:
             institution = part
+        elif not degree:
+            degree = part
         elif not location:
             location = part
     if not (degree or institution):
@@ -601,6 +720,10 @@ def _parse_languages(lines: list[str]) -> list[str]:
     return [t for t in tokens if 1 <= len(t) <= 40][:20]
 
 
+def _experience_text(sections: dict[str, list[str]]) -> list[str]:
+    return [ln for key in ("summary", "experience", "projects") for ln in sections.get(key, [])]
+
+
 def _parse_summary(lines: list[str], notes: _Notes) -> str:
     text = " ".join(ln.strip() for ln in lines if ln.strip())
     if len(text) > MAX_SUMMARY:
@@ -613,13 +736,48 @@ def _parse_summary(lines: list[str], notes: _Notes) -> str:
 # ── entry point ─────────────────────────────────────────────────────────────
 
 
+MAX_CHARS = 200_000  # far more than any CV; beyond this the rest is ignored
+MAX_LINES = 5000  # a CV has a few hundred lines
+MAX_LINE = 400  # a real CV line is shorter; longer runs are split so regex cost stays linear in the document size
+
+
+def _bounded_lines(text: str, notes: _Notes) -> list[str]:
+    """Lines of at most MAX_LINE characters (split at a space where possible). Without this, a hostile one-line
+    document makes the contact regexes quadratic: 16,000 characters took 6 seconds, 60,000 over a minute."""
+    if len(text) > MAX_CHARS:
+        text = text[:MAX_CHARS]
+        notes.add("The document is very long: only the first part was read.")
+    out: list[str] = []
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line and (not out or not out[-1]):
+            continue  # one blank line is a separator; a run of them is noise (and costs time per line)
+        if len(out) >= MAX_LINES:
+            notes.add("The document is very long: only the first part was read.")
+            break
+        while len(line) > MAX_LINE:
+            cut = line.rfind(" ", MAX_LINE // 2, MAX_LINE)
+            cut = cut if cut > 0 else MAX_LINE
+            out.append(line[:cut].rstrip())
+            line = line[cut:].lstrip()
+        out.append(line)
+    return out
+
+
 def read_cv(text: str) -> tuple[Profile, list[str]]:
     """Text of a CV -> (draft Profile, notes for the user). Never raises on odd content; it just finds less."""
     notes = _Notes()
-    lines = [ln.rstrip() for ln in text.splitlines()]
+    lines = _merge_wrapped_dates(_bounded_lines(text, notes))
+    text = "\n".join(lines)  # every regex below runs on bounded lines (see _bounded_lines)
     head, sections = _split_sections(lines)
     name, headline, location = _parse_header(head, notes)
+    if not name:
+        name, headline, place = _rescue_name(lines, sections, notes, headline)
+        location = location or place
     contact = _contact(text)
+    for line in sections.get("contact", []):
+        if not location and (_looks_like_place(line.strip()) or _looks_like_city(line.strip())):
+            location = line.strip()
     if location and not contact.location:
         contact = contact.model_copy(update={"location": location})
 
@@ -635,6 +793,9 @@ def read_cv(text: str) -> tuple[Profile, list[str]]:
     projects = safe("projects", lambda: _parse_projects(sections.get("projects", []), notes), [])
     certs = safe("certifications", lambda: _parse_certifications(sections.get("certifications", [])), [])
     skills = _parse_skills(sections.get("skills", [])) or taxonomy.find_skills(text)
+    if re.search(r"^\s*top skills\s*$", text, re.I | re.M):  # LinkedIn lists only the top three
+        used = taxonomy.find_skills(" ".join(_experience_text(sections)))
+        skills = [*skills, *[k for k in used if k.lower() not in {x.lower() for x in skills}]]
     profile = Profile(
         name=name,
         headline=headline,

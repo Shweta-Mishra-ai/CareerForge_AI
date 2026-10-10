@@ -1,9 +1,13 @@
 """Test helpers: build real PDFs/DOCX in memory so extraction is tested on genuine files."""
 
 import io
+import json
 import zipfile
 
 from weasyprint import HTML
+
+from careerforge.ai.client import AIClient, Clock, RetryPolicy, Route
+from careerforge.ai.providers import Completion
 
 
 def pdf_from_html(body: str, css: str = "") -> bytes:
@@ -60,3 +64,28 @@ def pdf_with_ruled_table(lines: list[str], cells: list[list[str]]) -> bytes:
     out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
     out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
     return bytes(out)
+
+
+# ── scripted AI for UI and service tests ─────────────────────────────────────
+
+
+class ScriptedProvider:
+    """A model that answers from a script. A reply that is an Exception instance is raised instead."""
+
+    name = "fake"
+
+    def __init__(self, *replies):
+        self.replies, self.requests = list(replies), []
+
+    def complete(self, model, req):
+        self.requests.append(req)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return Completion(reply if isinstance(reply, str) else json.dumps(reply), "fake", model)
+
+
+def scripted_client(*replies) -> tuple[AIClient, ScriptedProvider]:
+    provider = ScriptedProvider(*replies)
+    no_sleep = Clock(sleep=lambda s: None, monotonic=lambda: 0.0, uniform=lambda a, b: 0.0)
+    return AIClient([Route(provider, "m")], RetryPolicy(), no_sleep), provider

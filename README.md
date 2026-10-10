@@ -1,299 +1,151 @@
-<div align="center">
+# CareerForge AI
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0f0c29,50:302b63,100:24243e&height=200&section=header&text=CareerForge%20AI&fontSize=60&fontColor=ffffff&fontAlignY=38&desc=LinkedIn%20Profile%20→%20Professional%20CV%20in%20Seconds&descAlignY=60&descSize=18&animation=fadeIn" width="100%"/>
+Turn an **old CV, a LinkedIn profile or a GitHub account** into a **ready-to-submit CV and a portfolio website**, check
+it against a job posting the way an ATS would, and manage the application. Free to run, runs on Streamlit Community
+Cloud, and **never invents experience**.
 
-<br/>
+> One app. It replaces the two earlier projects, *CareerForge AI* (CV builder) and *CareerBoost AI* (ATS, portfolio,
+> jobs, outreach), which were audited and merged. See [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md) for what was found and
+> how each problem was fixed.
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Streamlit_Cloud-FF4B4B?style=for-the-badge&logoColor=white)](https://linkedin-cv-generator-d4v5vnoshm4rzvnchamfqj.streamlit.app/)
-[![Demo Video](https://img.shields.io/badge/📺_Demo_Video-Loom-625DF5?style=for-the-badge&logoColor=white)](https://www.loom.com/share/e5b1c8ffb00b447c90a910b9b27efe70)
-[![GitHub Stars](https://img.shields.io/github/stars/Shweta-Mishra-ai/CareerForge_AI?style=for-the-badge&logo=github&color=f0c040&labelColor=1a1a2e)](https://github.com/Shweta-Mishra-ai/CareerForge_AI/stargazers)
-[![Forks](https://img.shields.io/github/forks/Shweta-Mishra-ai/CareerForge_AI?style=for-the-badge&logo=github&color=4fc3f7&labelColor=1a1a2e)](https://github.com/Shweta-Mishra-ai/CareerForge_AI/network/members)
-[![License: MIT](https://img.shields.io/badge/License-MIT-00e676?style=for-the-badge&labelColor=1a1a2e)](https://github.com/Shweta-Mishra-ai/CareerForge_AI/blob/main/LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white&labelColor=1a1a2e)](https://www.python.org/)
+![Review your details](docs/screenshots/review.png)
 
-<br/>
+## What you can do
 
-> **Transform your raw LinkedIn profile into a polished, ATS-ready CV — powered by Google Gemini AI, with bulletproof anti-bot resilience.**
-
-</div>
-
----
-
-## 📌 Table of Contents
-
-- [Why CareerForge AI?](#-why-careerforge-ai)
-- [Live Demo](#-live-demo)
-- [Architecture](#-system-architecture)
-- [Key Features](#-key-features)
-- [Tech Stack](#-tech-stack)
-- [Quick Start](#-quick-start)
-- [How It Works](#-how-it-works)
-- [Project Structure](#-project-structure)
-- [V2 Roadmap](#-v2-roadmap)
-- [Contributing](#-contributing)
-- [Support the Project](#-support-the-project)
-
----
-
-## 💡 Why CareerForge AI?
-
-LinkedIn's anti-bot defenses (`HTTP 999`, `403 Forbidden`) are some of the most aggressive on the web. Cloud-hosted scrapers get IP-banned within seconds. Most CV generators either break silently or crash entirely.
-
-**CareerForge AI solves this with a two-layer resilience strategy:**
-
-| Layer | Method | Reliability |
+| Step | What it does | Needs AI? |
 |---|---|---|
-| 🥇 **Primary** | Native LinkedIn PDF Upload | ✅ 100% — No network, no ban |
-| 🥈 **Fallback** | Randomised UA scraper + slug parsing | ⚡ Best-effort, graceful degradation |
+| **Start** | Read a CV (PDF, DOCX, TXT), a LinkedIn *Save to PDF* or *data export* ZIP, pasted text, a GitHub account, or a saved profile | optional |
+| **Review & edit** | Correct everything in one place; AI suggestions stay out of your CV until you confirm them; a readiness check lists what blocks submission | no |
+| **ATS check** | A transparent 0-100 score against a job posting, or a general ATS-readiness score without one; compare up to 5 postings; section tips | no |
+| **Tailor to a job** | Reword your own bullets in the posting's language. New numbers, employers or skills are rejected; new posting terms wait for your decision | yes |
+| **Insights** | Career timeline and gaps, skill coverage, keyword heat map, learning roadmap for missing skills | no |
+| **CV & portfolio** | 4 CV templates → PDF, Word, text, HTML (the PDF is re-read with an ATS parser so you see how it extracts). A one-file portfolio site in 3 themes, with a free-hosting guide | no |
+| **LinkedIn profile** | Your CV rearranged into the text for each part of a LinkedIn profile (headline, About, experience, skills), within LinkedIn's field sizes; only your own words | no |
+| **Letters & interviews** | Verified cover letter, interview questions, and outreach/follow-up drafts (no guessed email addresses) | letter and questions: yes |
+| **Jobs & tracker** | Search public job boards ranked by how well your CV fits; track applications; follow-up reminders at day 7, 14 and 21 | no |
 
-Once data is extracted — messy or clean — **Google Gemini 2.0 Flash** restructures it into a perfect JSON schema. The result is a **print-ready, Canva-quality HTML CV** you can save as a PDF instantly.
+Without any API key you still get reading (rule-based), the ATS check, insights, outreach drafts, job search, tracker
+and every export. AI adds reading messy documents, tailoring, cover letters and interview questions.
 
----
+## The rules it follows
 
-## 🌐 Live Demo
+* **It never invents experience.** AI proposes; plain code verifies. Anything in an AI answer that cannot be found in
+  your own text is removed or held for your confirmation. GitHub import gives projects and skills only.
+* **It will not export an unfinished CV.** A missing name or email, a sample address (`you@example.com`), leftover
+  `[placeholders]`, or an empty profile blocks the download, and says what to fix.
+* **The score is arithmetic, not an opinion.** Weights are published in the app (*How it works*). They are design
+  choices, **not** fitted to any vendor's ATS; real ATS products are secret and differ. Every report says so.
+* **Failures are loud.** If the AI is down, out of quota or returns rubbish, you see a sentence, nothing changes, and
+  you can continue with the rule-based reader.
 
-> 🔗 **[Try it live → linkedin-cv-generator.streamlit.app](https://linkedin-cv-generator-d4v5vnoshm4rzvnchamfqj.streamlit.app/)**
-
-> 📺 **[Watch the walkthrough on Loom](https://www.loom.com/share/e5b1c8ffb00b447c90a910b9b27efe70)**
-
----
-
-## 🏗️ System Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        USER INPUT LAYER                         │
-│                                                                 │
-│    ┌──────────────────────┐    ┌──────────────────────────┐    │
-│    │  📄 LinkedIn PDF     │    │  🔗 LinkedIn Profile URL │    │
-│    │  (Primary — 100%)    │    │  (Fallback — Best Effort)│    │
-│    └──────────┬───────────┘    └─────────────┬────────────┘    │
-└───────────────┼─────────────────────────────┼─────────────────┘
-                │                             │
-                ▼                             ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     EXTRACTION LAYER                         │
-│   ┌────────────────┐          ┌──────────────────────────┐  │
-│   │  pdfplumber    │          │  Requests + BeautifulSoup│  │
-│   │  (layout-aware)│          │  (Randomised UA Headers) │  │
-│   └───────┬────────┘          └────────────┬─────────────┘  │
-│           └────────────┬───────────────────┘                │
-└────────────────────────┼───────────────────────────────────┘
-                         │  Raw Unstructured Text
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│                      AI ENGINE LAYER                         │
-│   ┌──────────────────────────────────────────────────────┐  │
-│   │  Gemini 2.0 Flash → 1.5 Flash → 1.5 Pro (cascade)   │  │
-│   │  Fallback: Groq Llama 3.3 70B                        │  │
-│   │  Output: { name, headline, skills[], experience[] }  │  │
-│   └────────────────────────┬─────────────────────────────┘  │
-└────────────────────────────┼────────────────────────────────┘
-                             │  Clean JSON Schema
-                             ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    CV GENERATION LAYER                       │
-│   ┌──────────────────────────────────────────────────────┐  │
-│   │  7 Premium HTML/CSS Templates                        │  │
-│   │  Two-Column · Executive · Creative · Minimalist      │  │
-│   │  Teal Accent · Academic · Dark Premium               │  │
-│   └────────────────────────┬─────────────────────────────┘  │
-└────────────────────────────┼────────────────────────────────┘
-                             ▼
-                    📥 Download CV  (HTML → PDF via Ctrl+P)
-```
-
----
-
-## ✨ Key Features
-
-### 🛡️ Anti-Bot Resilience
-LinkedIn's `HTTP 999` and `403` errors handled proactively. The app **never crashes** — degrades gracefully from URL scraping to PDF upload with clear user guidance.
-
-### 🧠 Dual-LLM Cascade (4-layer fallback)
-**Gemini 2.0 Flash-Lite → 2.0 Flash → 1.5 Flash → Groq Llama 3.3 70B** — four layers ensure 99.9% uptime regardless of API rate limits or model deprecations.
-
-### 🎨 7 Premium CV Templates
-Each template is hand-crafted with production-grade HTML/CSS — Two-Column Navy, Executive Corporate, Creative Ribbons, Minimalist Clean, Teal Accent, Academic Structured, Dark Premium Gold.
-
-### 🎯 Deep ATS Analysis Engine
-Section-by-section scoring, missing keyword detection, formatting audit, hallucination integrity check, and a fully tailored CV — all in one click.
-
-### 📊 Career Tools Suite
-Auto-generated **Cover Letter** and **Interview Prep Questions** grounded in your actual CV and the target JD. No generic output.
-
-### 📎 Chrome Extension (MV3)
-Capture your LinkedIn profile directly from the browser — no manual PDF export needed.
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Frontend / Hosting** | Streamlit | UI & Cloud Deployment |
-| **PDF Parsing** | pdfplumber | Layout-aware text extraction |
-| **Web Scraping** | BeautifulSoup4, Requests | URL fallback extraction |
-| **Primary AI** | Google Gemini 2.0/1.5 | JSON structuring from raw text |
-| **Fallback LLM** | Groq (Llama 3.3 70B) | Rate-limit & deprecation resilience |
-| **CV Rendering** | HTML5 / CSS3 | Print-ready output |
-| **Distribution** | Base64 Encoding | In-browser file download |
-| **Browser Tool** | Chrome Extension MV3 | Direct LinkedIn capture |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.9+
-- Google Gemini API Key → [Get free key](https://makersuite.google.com/app/apikey)
-- Groq API Key → [Get free key](https://console.groq.com)
-
-### 1. Clone & Install
+## Quick start
 
 ```bash
-git clone https://github.com/Shweta-Mishra-ai/CareerForge_AI.git
-cd CareerForge_AI
+git clone https://github.com/Shweta-Mishra-ai/CareerForge_AI && cd CareerForge_AI
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Configure API Keys
-
-Create `.streamlit/secrets.toml`:
-
-```toml
-GEMINI_API_KEY = "your_gemini_api_key_here"
-GROQ_API_KEY   = "your_groq_api_key_here"
-```
-
-### 3. Run
-
-```bash
+# PDF export needs Pango: macOS `brew install pango`, Debian/Ubuntu `sudo apt install libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-liberation`
 streamlit run app.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501)
+Python 3.13 is what development and CI use (`pyproject.toml` allows 3.11+, which is untested). Open http://localhost:8501.
 
----
+### Optional: AI
 
-## 🎯 How It Works
+Free keys: [Google AI Studio](https://aistudio.google.com/apikey) (Gemini) and [Groq](https://console.groq.com/keys).
+Either one is enough. Put them in `.streamlit/secrets.toml` (copy `.streamlit/secrets.toml.example`) or in environment
+variables, or paste them into **Settings** in the app (kept for that browser session only, never written anywhere).
 
-```
-Step 1 → Upload LinkedIn PDF   (LinkedIn → Me → Save to PDF)
-           OR paste LinkedIn URL
-           OR paste text / use Chrome Extension
-
-Step 2 → (Optional) Paste Job Description for ATS targeting
-
-Step 3 → Click "Analyze & Generate"
-           AI extracts → structures → templates your profile
-
-Step 4 → Download as HTML → Save as PDF via Ctrl+P
-```
-
----
-
-## 📁 Project Structure
-
-```
-CareerForge_AI/
-│
-├── .streamlit/
-│   └── secrets.toml          # API keys (gitignored — never committed)
-│
-├── chrome_extension/         # MV3 Chrome Extension
-│   ├── manifest.json
-│   ├── content.js
-│   ├── popup.html
-│   └── popup.js
-│
-├── core/                     # Business logic (zero Streamlit imports)
-│   ├── ai_engine.py          # LLM cascade + JSON parsing + prompts
-│   └── scraper.py            # PDF extraction + URL scraping
-│
-├── templates/
-│   └── cv_styles.py          # 7 premium HTML/CSS CV templates
-│
-├── app.py                    # Streamlit entry point
-├── requirements.txt
-├── .gitignore
-├── LICENSE
-└── README.md
-```
-
----
-
-## 🗺️ V2 Roadmap
-
-> V1 is stable and live. These are confirmed V2 features.
-
-| Status | Feature | Description |
-|---|---|---|
-| ✅ **V1 Done** | PDF + URL + Paste input | Bulletproof dual-layer extraction |
-| ✅ **V1 Done** | 7 premium CV templates | Hand-crafted HTML/CSS designs |
-| ✅ **V1 Done** | ATS scoring + CV tailoring | Full gap analysis + rewritten CV |
-| ✅ **V1 Done** | Cover letter generator | JD-grounded, no filler templates |
-| ✅ **V1 Done** | Interview prep questions | Gap-focused, role-specific |
-| ✅ **V1 Done** | Chrome Extension (MV3) | Direct LinkedIn browser capture |
-| 🔄 **V2 Planned** | **ATS-Only Mode** | Score your existing CV without regenerating it — keep original format, get only keyword fix suggestions |
-| 🔄 **V2 Planned** | **CV Analytics Dashboard** | HR-style visual report — skill gap radar, experience timeline, keyword density heatmap, career progression score |
-| 🔄 **V2 Planned** | **Section-Level Tips Engine** | Personalised, line-by-line improvement tips per CV section — *"Add metrics to bullet 2"*, *"Missing cloud keywords in Skills"* |
-| 🔄 **V2 Planned** | **DOCX Export** | Download CV as editable Word document |
-| 🔄 **V2 Planned** | **Multi-JD Comparison** | Match your CV against 3 JDs simultaneously, ranked by fit |
-| 📋 **V3 Future** | LinkedIn OAuth | Official API — no scraping needed |
-| 📋 **V3 Future** | Reverse Mode | CV → LinkedIn profile sections generator |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
+Free model names change often, so the app **discovers** which models your key can use at runtime. To check what works
+right now with *your* keys and get paste-ready settings:
 
 ```bash
-# Fork the repo, then:
-git clone https://github.com/YOUR_USERNAME/CareerForge_AI.git
-git checkout -b feature/your-feature-name
-
-# Make your changes, then:
-git commit -m "feat: describe your change"
-git push origin feature/your-feature-name
-# Open a Pull Request
+python -m careerforge.ai.doctor
 ```
 
-Please follow [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
+| Setting | Meaning |
+|---|---|
+| `GEMINI_API_KEY`, `GROQ_API_KEY` | Provider keys |
+| `CAREERFORGE_GEMINI_MODELS`, `CAREERFORGE_GROQ_MODELS` | Pin models (comma-separated); skips discovery |
+| `CAREERFORGE_SESSION_AI_LIMIT` | AI actions per visitor session when *you* pay for the key (default 30). Visitors who add their own key are unlimited |
+| `GITHUB_TOKEN` | Optional; raises GitHub's rate limit for imports |
+| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Optional; enables the Adzuna job board |
 
-For major changes, open an Issue first to discuss scope.
+## Deploy (free)
 
----
+Streamlit Community Cloud: fork, create the app from `app.py`, paste your secrets. `packages.txt` already lists the
+system libraries and fonts that PDF export needs. Full steps: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-## 📄 License
+## Privacy and security
 
-MIT License — free for personal, commercial, and portfolio use.
-See [`LICENSE`](https://github.com/Shweta-Mishra-ai/CareerForge_AI/blob/main/LICENSE) for full terms.
+* Your details live in the visitor's session memory; nothing is stored on a server. *Save my profile* downloads a file
+  you keep.
+* The app makes **no third-party requests** from the browser (tested): no analytics, no CDN fonts or icons.
+* AI text goes only to the provider whose key is configured, and only when you run an AI action. Documents are
+  treated as untrusted data (prompt-injection lines are stripped and reported). API keys are redacted from errors.
+* Uploaded and generated content is escaped on output; CV previews and the portfolio carry a strict Content Security
+  Policy (no scripts, no external resources). Job-posting links are fetched through an SSRF-safe client (public
+  addresses only, redirects re-checked, size limits). LinkedIn exports are read from an allow-list of files only.
+* GitHub import cannot prove an account is yours (that needs OAuth): only import your own.
+* Found a security problem? Please tell the repository owner privately rather than in a public issue.
 
----
-
-## ⭐ Support the Project
-
-If CareerForge AI helped your job search:
+## How it is built
 
 ```
-⭐ Star this repo    — helps other job seekers find this tool
-🍴 Fork it          — build on it, make it yours
-🐛 Open an Issue    — your bug report makes it better for everyone
-📢 Share it         — LinkedIn, Twitter, wherever developers gather
+app.py                      entry point (st.navigation)
+careerforge/
+  models.py                 typed Profile: the single source of truth, with provenance (user/extracted/suggested)
+  readiness.py              "is this safe to send?" rules and the export gate
+  ingest/                   PDF (column-aware), DOCX, TXT, LinkedIn export, GitHub, SSRF-safe web fetch, rule reader
+  ai/                       Gemini + Groq clients, retry/backoff, model discovery, JSON repair, grounding checker
+  ats/                      job-posting parser, matcher, scoring report, PDF parse check
+  tailor/ writing/          verified rewording, cover letters, interview prep
+  render/                   Jinja2 templates, PDF/DOCX/TXT/HTML, portfolio generator and themes
+  jobs.py tracker.py ...    job search, application tracker, outreach, roadmap, analytics
+  ui/                       state, error messages, widgets and the page modules
+chrome_extension/           copies the open LinkedIn profile as text (no network, two permissions)
+tests/                      unit, UI (AppTest), and real-browser end-to-end tests
 ```
 
----
+## Testing
 
-<div align="center">
+```bash
+pip install -r requirements-dev.txt
+playwright install chromium          # once
+pytest -m "not live"                 # everything, including browser tests (about 4 minutes)
+pytest -m "not live and not e2e"     # fast: no browser
+ruff check . && ruff format --check careerforge tests
+```
 
-**Built for job seekers, by a job seeker.**
+What the suite covers: the scoring and parsing logic with fixtures and mutation-checked assertions; PDF text order on
+generated multi-column layouts; the whole Streamlit app headlessly (every page, validation, quotas, hostile input);
+and a real browser against a real server for the main journeys, downloads (PDF/DOCX/ZIP re-parsed), mobile layout,
+XSS attempts, third-party-request detection and automated accessibility audits (axe-core, WCAG 2.1 AA) of the app and
+of the generated CV and portfolio pages. `pytest -m live` runs a smoke test against the real AI providers with your
+keys (not part of CI).
 
-*Open source. Free forever.*
+## Known limitations
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Shweta-Mishra-ai/CareerForge_AI&type=Date)](https://star-history.com/#Shweta-Mishra-ai/CareerForge_AI)
+* The score approximates how ATS software reads a CV. It cannot predict a specific employer's system.
+* Scanned (image-only) PDFs cannot be read. LinkedIn profile *links* cannot be read; use its PDF or data export.
+* The LinkedIn data-export reader and the live job-board APIs were built from documentation and have not been checked
+  against real exports or recorded responses. Failures are reported per source rather than hidden.
+* The LinkedIn *Save to PDF* layout is handled by the rule reader from knowledge of that layout (sidebar first,
+  then name; company, title, then dates with a duration). It is covered by a look-alike sample, **not** by a real
+  export; if your PDF comes out wrong, the AI reader or manual editing will fix it, and a sample would help improve it.
+* The rule-based reader understands common layouts (headed sections; *Title - Company (dates)* entries). It flags
+  title/company splits it had to guess. Unusual layouts need the AI reader or manual editing.
+* Non-Latin names (CJK, Arabic, ...) render in PDFs only if the host has a font for them. Streamlit Cloud's default
+  image may not; add a suitable font package to `packages.txt` if you need it.
+* DOCX output was inspected through LibreOffice, not Microsoft Word.
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:24243e,50:302b63,100:0f0c29&height=120&section=footer" width="100%"/>
+## Chrome extension
 
-</div>
+`chrome_extension/` adds a button that copies the text of the LinkedIn profile you have open, so you can paste it into
+**Start → Paste text**. It needs only `activeTab` and `scripting`, makes no network requests and reads nothing until
+you click. Load it via `chrome://extensions` → *Developer mode* → *Load unpacked*. LinkedIn changes its page markup
+without notice; if the copy comes out empty, use *Save to PDF* instead.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

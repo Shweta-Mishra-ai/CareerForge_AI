@@ -470,7 +470,7 @@ def test_pdf_generation_never_connects_to_anything():
     t = threading.Thread(target=accept)
     t.start()
     html = f'<link rel="stylesheet" href="http://127.0.0.1:{port}/a.css"><img src="http://127.0.0.1:{port}/b.png"><p>ok</p>'
-    assert HTML(string=html, url_fetcher=cv.NO_FETCH).write_pdf()  # renders, with the resources skipped
+    assert HTML(string=html, url_fetcher=cv._pdf_engine()[1]).write_pdf()  # renders, with the resources skipped
     t.join()
     server.close()
     assert hits == []
@@ -603,3 +603,49 @@ def test_template_typos_fail_loudly_instead_of_printing_nothing():
 def test_fresher_without_jobs_is_not_penalised_for_a_missing_experience_heading():
     out = cv.render_cv_pdf(fresher(), RenderOptions())
     assert not any("experience" in f for f in out.parse.findings)
+
+
+# ── the PDF engine is optional: without Pango the other formats must keep working ──────────────────────────
+
+
+class TestPdfEngineUnavailable:
+    @pytest.fixture
+    def no_engine(self, monkeypatch):
+        import sys
+
+        cv._pdf_engine.cache_clear()
+        monkeypatch.setitem(sys.modules, "weasyprint", None)  # `from weasyprint import ...` now raises ImportError
+        yield
+        cv._pdf_engine.cache_clear()
+
+    def test_pdf_export_says_what_is_missing_and_how_to_fix_it(self, no_engine):
+        with pytest.raises(cv.PdfEngineUnavailable, match="Pango"):
+            cv.render_cv_pdf(experienced())
+
+    def test_every_other_format_still_works(self, no_engine):
+        p = experienced()
+        assert "Priya Nair" in cv.render_cv_html(p) and "PRIYA NAIR" in render_cv_txt(p)
+        assert docx.Document(io.BytesIO(render_cv_docx(p))).paragraphs[0].text == "Priya Nair"
+
+    def test_a_missing_system_library_is_treated_the_same_as_a_missing_package(self, monkeypatch):
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake(name, *a, **k):
+            if name == "weasyprint":
+                raise OSError("cannot load library 'libpango-1.0-0'")  # what WeasyPrint raises without Pango
+            return real_import(name, *a, **k)
+
+        cv._pdf_engine.cache_clear()
+        monkeypatch.setattr(builtins, "__import__", fake)
+        try:
+            with pytest.raises(cv.PdfEngineUnavailable):
+                cv.render_cv_pdf(experienced())
+        finally:
+            monkeypatch.undo()
+            cv._pdf_engine.cache_clear()
+
+    def test_the_engine_loads_again_once_it_is_available(self):
+        cv._pdf_engine.cache_clear()
+        assert cv.render_cv_pdf(experienced()).data[:5] == b"%PDF-"

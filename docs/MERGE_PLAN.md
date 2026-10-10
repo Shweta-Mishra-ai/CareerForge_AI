@@ -50,9 +50,9 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn (PDF + data export)/GitHub; SSRF-safe URL fetch; extension fixes; review logic | ✅ (the Streamlit review-and-edit *form* is built with the UI in Phase 6; its logic, `careerforge/review.py`, is done) |
 | 4 | Feature port (matrix below) | ✅ ATS v2, ATS-only mode, multi-JD comparison, tailoring, cover letter, interview prep, job search, outreach, roadmap, analytics + section tips, tracker. Not built: Reverse mode (CV -> LinkedIn sections, optional) |
 | 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/TXT/HTML export, ATS-safe variants, 3 portfolio themes | ✅ (`careerforge/render/`) |
-| 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
-| 7 | Test hardening: Playwright e2e, visual regression, axe, security matrix, coverage gate | ⬜ |
-| 8 | Docs/release; archive `careerboost-ai` with a pointer README | ⬜ |
+| 6 | UI/UX: multipage `st.navigation`, review-and-edit form, lazy sections, mobile layout, accessibility | ✅ (`app.py`, `careerforge/ui/`) |
+| 7 | Test hardening: browser e2e, accessibility (axe), security and privacy checks, coverage gate | ✅ (see notes) |
+| 8 | Docs/release; archive `careerboost-ai` with a pointer README | ✅ |
 
 ## Feature matrix
 | Feature | From | Phase |
@@ -65,7 +65,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | DOCX export | CF V2 | 5 |
 | Application tracker (kanban), scoring history (via profile file) | CB roadmap | 4 |
 | Multiple portfolio themes | CB roadmap | 5 |
-| Reverse mode (CV → LinkedIn sections) | CF V3 | 4 if time |
+| Reverse mode (CV → LinkedIn sections) | CF V3 | ✅ `linkedin_kit.py` + LinkedIn profile page (AI-free) |
 | **Deferred:** LinkedIn OAuth (believed to need partner approval), Naukri (no known public API; scraping ToS risk), extension one-click ATS, "Caria" SaaS rewrite | both | not planned |
 
 ## Audit backlog → where each is fixed (and which test flips)
@@ -176,6 +176,45 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
   `DateRange` printed "2018 - 2018"; new readiness rule R020 (summary claims N years vs. dates).
 * Known gaps (backlog): letter-spaced headings in *uploaded* CVs ("S K I L L S") are not collapsed by the PDF reader;
   DOCX was inspected visually via LibreOffice only (not Word); sidebar template reading order is poor by design.
+
+## UI, hardening and release notes (Phases 6-8)
+* `app.py` + `careerforge/ui/`: `st.navigation` with 10 page modules that contain no business logic. Pages are executed as
+  scripts, so they are also tested through the whole app with `AppTest`.
+* AI is optional everywhere. Reading falls back to `ingest/rules.py` (rule-based; grounded like AI output). The user is
+  asked which reader to use and is never switched silently.
+* Shared-key protection: per-session quota (`CAREERFORGE_SESSION_AI_LIMIT`). A visitor's own key lives only in their
+  session (never in the shared client cache). The quota is a courtesy limit, not abuse protection.
+* Tests: UI behaviour with `AppTest` (hermetic: no real secrets, scripted AI), and real-browser journeys against a real
+  server with a fake Gemini endpoint (the real SDK talks to it). Includes: PDF/DOCX/ZIP downloads re-parsed, save/load
+  round trip, mobile viewport, XSS/CSP, third-party request detection, axe audits (WCAG 2.1 AA) of the app and of
+  generated CV/portfolio pages, with a negative control proving the audit can fail.
+* Streamlit's own sidebar-navigation markup fails two axe rules (`list`/`listitem`) and its sidebar container carries
+  a disallowed ARIA attribute; these are excluded narrowly and documented in `test_e2e_quality.py`. Alert text colours
+  are set in `.streamlit/config.toml` to reach 4.5:1.
+
+### Found by the new tests and fixed
+* Streamlit fetched the page icon from a Google CDN: now an emoji (no third-party request).
+* `st.components.v1.html` is removed upstream after 2026-06-01: previews use `st.iframe`, with a CSP in the document.
+* PDF reader: right-aligned dates/URLs on far-apart rows were read as a second column after everything else
+  (`_is_sparse`, `_too_small_for_columns`); a "Links found in the document" footer leaked into the last section.
+* Rule reader: GitHub URL regex backtracked to a prefix of the username; markup in a headline.
+* A visitor's own key was being cached server-wide for up to an hour.
+* Quadratic running time: contact regexes on very long lines in the rule reader, and the skill-containment check in
+  `find_skills` (both now linear, with performance regression tests in `tests/test_performance.py`).
+* A missing PDF engine (no Pango, common on Windows) no longer takes the export page down.
+
+### Reader tested against documents from other software
+Sample PDFs were produced by python-docx + LibreOffice (single column with tab-aligned dates; two-column table with
+the name after the sidebar; company-first with numeric dates; a LinkedIn-style layout composed from knowledge of that
+format) and are committed as fixtures (`tests/fixtures/real_*.pdf`). They found 8 reader gaps, all fixed with mutation-
+checked tests. The LinkedIn-style sample is NOT a real export.
+
+## Still unverified (cannot be checked from the build environment)
+* A real Streamlit Cloud deployment (system packages, fonts, Python version selection): see docs/DEPLOY.md.
+* Live Gemini/Groq behaviour and current free model names: run `python -m careerforge.ai.doctor` with real keys.
+* Live job-board APIs (Remotive, Jobicy, Adzuna) and a real LinkedIn data export.
+* The Chrome extension against today's LinkedIn markup.
+* DOCX in Microsoft Word; non-Latin fonts on Streamlit Cloud.
 
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).

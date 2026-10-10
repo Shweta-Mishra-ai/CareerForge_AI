@@ -17,7 +17,7 @@ from careerforge.ai.extract import extract_profile
 from careerforge.ai.grounding import GroundingReport, ground_profile
 from careerforge.ingest.files import Document, read_document
 from careerforge.ingest.linkedin import profile_from_linkedin_export
-from careerforge.ingest.rules import read_cv
+from careerforge.ingest.rules import MAX_CHARS, read_cv
 from careerforge.models import Profile
 
 LINKEDIN_PDF_HINT = (
@@ -71,7 +71,11 @@ def ingest_upload(name: str, data: bytes, client: AIClient | None) -> IngestResu
 
     text = with_links(doc.text, doc.links)
     if client is None:
+        too_long = len(text) > MAX_CHARS
+        text = text[:MAX_CHARS]  # the reader ignores the rest; the grounding check must look at the same text
         draft, notes = heuristic_profile(text)
+        if too_long:
+            notes.append("The document is very long: only the first part was read.")
         profile, report = ground_profile(draft, text)  # same safety net as AI output
         return IngestResult(profile, "heuristic", (*doc.warnings, *notes), report)
 

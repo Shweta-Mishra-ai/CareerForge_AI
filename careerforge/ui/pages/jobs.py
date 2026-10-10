@@ -154,7 +154,7 @@ def _tracker(profile) -> None:
             for a in tracker.applications
         ]
     )
-    st.dataframe(frame, hide_index=True, use_container_width=True)
+    st.dataframe(frame, hide_index=True, width="stretch")
     labels = {a.id: f"{a.company}: {a.role}" for a in tracker.applications}
     pick = st.selectbox("Update an application", list(labels), format_func=labels.get, key="tracker-pick")
     current = tracker.get(pick)

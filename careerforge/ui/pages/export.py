@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
 import streamlit as st
-import streamlit.components.v1 as components
 from pydantic import ValidationError
 
 from careerforge.models import Profile
 from careerforge.readiness import NotReady
-from careerforge.render.cv import PdfExport, preview_html, render_cv_html, render_cv_pdf
+from careerforge.render.cv import PdfEngineUnavailable, PdfExport, preview_html, render_cv_html, render_cv_pdf
 from careerforge.render.docx_export import render_cv_docx
 from careerforge.render.options import DEFAULT_ACCENT, SECTION_TITLES, SECTIONS, TEMPLATES, RenderOptions
 from careerforge.render.portfolio import PortfolioOptions, blockers, build_portfolio
@@ -88,24 +89,26 @@ def _cv_options(profile: Profile) -> RenderOptions | None:
 def _build_files(profile: Profile, options: RenderOptions) -> None:
     try:
         with st.spinner("Building your files..."):
-            pdf = render_cv_pdf(profile, options)
-            files = {
-                "pdf": pdf,
+            files: dict = {"pdf": None}
+            try:
+                files["pdf"] = render_cv_pdf(profile, options)
+            except PdfEngineUnavailable as exc:  # only the PDF is lost; the other formats do not need the engine
+                st.warning(str(exc), icon=":material/warning:")
+            files |= {
                 "docx": render_cv_docx(profile, options),
                 "txt": render_cv_txt(profile, options),
                 "html": render_cv_html(profile, options),
             }
-    except NotReady as exc:
-        st.error(explain(exc), icon=":material/error:")
-        return
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 - includes NotReady: shown as a sentence
         st.error(explain(exc), icon=":material/error:")
         return
     st.session_state[BUILT] = (_signature(profile, options), files)
 
 
 def _signature(profile: Profile, options: RenderOptions) -> str:
-    return profile.content_hash() + options.model_dump_json()
+    data = options.model_dump(mode="json")
+    data["hidden"] = sorted(data["hidden"])  # a set has no stable order
+    return profile.content_hash() + json.dumps(data, sort_keys=True)
 
 
 def _pdf_report(pdf: PdfExport) -> None:
@@ -130,7 +133,7 @@ def _cv_tab(profile: Profile) -> None:
         return
     result = readiness_panel(profile, key="export-ready")
     st.subheader("Preview", anchor=False)
-    components.html(preview_html(profile, options), height=900, scrolling=True)
+    st.iframe(preview_html(profile, options), height=900)
     if not result.ready:
         st.info("Downloads unlock when the blockers above are fixed. Use **Review & edit**.")
         st.page_link("careerforge/ui/pages/review.py", label="Go to Review & edit", icon=":material/edit_note:")
@@ -147,7 +150,10 @@ def _cv_tab(profile: Profile) -> None:
     stem = safe_file_stem(profile.name)
     cols = st.columns(4)
     with cols[0]:
-        download("PDF", files["pdf"].data, f"{stem}_CV.pdf", "application/pdf", key="dl-pdf", primary=True)
+        if files["pdf"] is not None:
+            download("PDF", files["pdf"].data, f"{stem}_CV.pdf", "application/pdf", key="dl-pdf", primary=True)
+        else:
+            st.caption("PDF unavailable on this machine")
     with cols[1]:
         download(
             "Word (.docx)",
@@ -160,7 +166,8 @@ def _cv_tab(profile: Profile) -> None:
         download("Plain text", files["txt"], f"{stem}_CV.txt", "text/plain", key="dl-txt")
     with cols[3]:
         download("HTML", files["html"], f"{stem}_CV.html", "text/html", key="dl-html")
-    _pdf_report(files["pdf"])
+    if files["pdf"] is not None:
+        _pdf_report(files["pdf"])
 
 
 # ── portfolio ───────────────────────────────────────────────────────────────
@@ -213,7 +220,7 @@ def _portfolio_tab(profile: Profile) -> None:
         return
     for warning in built.warnings:
         st.warning(warning, icon=":material/warning:")
-    components.html(built.html, height=900, scrolling=True)
+    st.iframe(built.html, height=900)
     stem = safe_file_stem(profile.name)
     d1, d2 = st.columns(2)
     with d1:

@@ -33,7 +33,7 @@ def render() -> None:
                 [{"Role": s.label, "From": s.start, "To": s.end or "Present", "Months": s.months} for s in tl.spans]
             ),
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
         for gap in tl.gaps:
             st.warning(gap, icon=":material/warning:")
@@ -49,7 +49,7 @@ def render() -> None:
             frame = frame[["Listed"]]
             st.caption("Paste a job posting above to compare against what it requires.")
         st.bar_chart(frame)
-        st.dataframe(frame, use_container_width=True)
+        st.dataframe(frame, width="stretch")
     elif view == "Keyword heat":
         if not job.strip():
             st.info("Paste a job posting above: this shows where each keyword appears in your CV.")
@@ -73,7 +73,7 @@ def render() -> None:
                 ]
             ),
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
         st.caption(
             "Numbers are how often the keyword appears in each section. A keyword only in Skills carries less weight."
