@@ -48,7 +48,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | 1 | `Profile` model, JSON import/export, legacy adapter, skills taxonomy, **submission-readiness gate** | ✅ |
 | 2 | AI layer: `google-genai` + Groq cascade, retry/backoff, validated output, grounding checker, injection-safe extraction | ✅ (rewrite/tailor prompts + rewrite-mode grounding land with their features in Phase 4) |
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn (PDF + data export)/GitHub; SSRF-safe URL fetch; extension fixes; review logic | ✅ (the Streamlit review-and-edit *form* is built with the UI in Phase 6; its logic, `careerforge/review.py`, is done) |
-| 4 | Feature port (matrix below) | 🔄 ATS v2 + ATS-only mode + multi-JD comparison done; tailor/cover letter/interview/jobs/outreach/roadmap/analytics/tracker pending |
+| 4 | Feature port (matrix below) | ✅ ATS v2, ATS-only mode, multi-JD comparison, tailoring, cover letter, interview prep, job search, outreach, roadmap, analytics + section tips, tracker. Not built: Reverse mode (CV -> LinkedIn sections, optional) |
 | 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
 | 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
 | 7 | Test hardening: Playwright e2e, visual regression, axe, security matrix, coverage gate | ⬜ |
@@ -148,6 +148,15 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
 * Companies, titles, dates, education and contact are never sent for rewriting. Skills are only re-ordered.
 * Result carries ATS before/after and an explicit note that rewording cannot create experience.
 * Not covered: tone/style quality of accepted rewrites is not judged, only their faithfulness.
+
+## Feature-port notes (Phase 4, remaining slices)
+* AI-written text (cover letter, interview prep, tailoring): the model drafts, deterministic code verifies; anything
+  unsupported is removed, held for the user, or returned as explicit `issues`. Nothing is presented as verified when it is not.
+* No-AI features: outreach drafts, roadmap, tracker, analytics, section tips, gap questions.
+* Dropped on purpose: guessed recruiter emails (hr@company.com), invented learning links, "model answers" from a
+  candidate's "likely background", the Muse/Adzuna fallbacks that sent empty credentials.
+* Job search is NOT verified against the live Remotive/Jobicy/Adzuna APIs (field names from the old app's working code).
+  Run it once with a real network to confirm; failures are reported per provider.
 
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).
