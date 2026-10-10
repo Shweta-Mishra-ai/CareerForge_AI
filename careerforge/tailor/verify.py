@@ -45,6 +45,11 @@ def _longest_shared_run(a: list[str], b: list[str], at_least: int) -> int:
     return at_least if any(tuple(a[i : i + at_least]) in grams for i in range(len(a) - at_least + 1)) else 0
 
 
+def _starts_sentence(text: str, pos: int) -> bool:
+    """True if the word at `pos` opens the text, a sentence, a line or a bullet (capitalised for grammar only)."""
+    return not text[:pos].strip() or bool(re.search(r"(?:[.!?:;•\-–—]|\n)\s*$", text[:pos]))
+
+
 def _new_names(new: str, known_text: str) -> list[str]:
     """Capitalised words (not the first word) that the known text never mentions: product/company names, acronyms.
 
@@ -53,11 +58,10 @@ def _new_names(new: str, known_text: str) -> list[str]:
     """
     known = {stem(w) for w in _words(known_text)}
     in_skills = {stem(w) for s in taxonomy.find_skills(new) for w in normalize(s).split()}
-    first = re.match(r"\W*(\w+)", new)
     out = []
     for m in _CAPITALISED.finditer(new):
         word = m.group(0)
-        if first and m.start() <= first.start(1):
+        if _starts_sentence(new, m.start()):
             continue
         key = stem(normalize(word).replace(" ", ""))
         if key in known or key in in_skills or taxonomy.lookup(word):

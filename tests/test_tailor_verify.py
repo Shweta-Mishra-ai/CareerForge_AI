@@ -147,3 +147,22 @@ class TestSummary:
 
     def test_unchanged(self):
         assert self.check(self.ORIG).status == "unchanged"
+
+
+class TestNamesAreNotSentenceStarts:
+    def test_capitalised_sentence_openers_are_not_names(self):
+        orig = "Built payment services for the settlement team."
+        new = "Built payment services for the settlement team. That work reduced manual effort. Thank you."
+        assert not any("name" in r for r in check_bullet(orig, new, role_text=orig).reasons)
+
+    def test_a_real_name_mid_sentence_is_still_caught(self):
+        orig = "Built payment services for the settlement team."
+        v = check_bullet(orig, "Built payment services for the settlement team at Stripe.", role_text=orig)
+        assert any("introduces name" in r for r in v.reasons)
+
+    def test_name_right_after_a_sentence_opener_is_still_caught(self):
+        orig = "Built payment services for the settlement team."
+        v = check_bullet(
+            orig, "Built payment services for the settlement team. Then Datadog monitoring.", role_text=orig
+        )
+        assert any("Datadog" in r for r in v.reasons)
