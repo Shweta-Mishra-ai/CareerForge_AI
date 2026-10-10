@@ -25,11 +25,13 @@ from careerforge.ai.errors import (
     AIModelNotFound,
     AINotConfigured,
     AIOutputError,
+    AIQuotaExhausted,
     redact,
 )
 from careerforge.ai.jsonutil import JSONExtractError, JSONTruncatedError, extract_json
+from careerforge.ai.models import Discovery, discover
 from careerforge.ai.providers import Completion, GeminiProvider, GroqProvider, Provider, Request
-from careerforge.ai.settings import AISettings
+from careerforge.ai.settings import FALLBACK_GEMINI_MODELS, FALLBACK_GROQ_MODELS, AISettings
 
 T = TypeVar("T")
 
@@ -68,6 +70,7 @@ class AIClient:
     clock: Clock = field(default_factory=Clock)
     secrets: tuple[str, ...] = ()
     max_tokens_cap: int = 16384
+    notes: list[str] = field(default_factory=list)  # human-readable remarks, e.g. how models were chosen
 
     def _msg(self, exc: Exception) -> str:
         return redact(f"{type(exc).__name__}: {exc}", self.secrets)
@@ -101,7 +104,7 @@ class AIClient:
                     dead.add(route.provider.name)
                     record(route, exc)
                     break
-                except (AIModelNotFound, AIBadRequest) as exc:
+                except (AIModelNotFound, AIQuotaExhausted, AIBadRequest) as exc:
                     record(route, exc)
                     break
                 except AIError as exc:  # retryable
@@ -166,17 +169,60 @@ def parse_json_object(text: str) -> dict:
     return value
 
 
-def build_client(settings: AISettings, *, policy: RetryPolicy | None = None, clock: Clock | None = None) -> AIClient:
-    """Routes: Gemini models first, then Groq models. Raises AINotConfigured when there is no key at all."""
+def build_client(
+    settings: AISettings,
+    *,
+    policy: RetryPolicy | None = None,
+    clock: Clock | None = None,
+    discover_models: bool = True,
+) -> AIClient:
+    """Routes: Gemini models first, then Groq models.
+
+    Models come from (1) the user's pinned CAREERFORGE_*_MODELS, else (2) live discovery from the provider, else
+    (3) the unverified FALLBACK_* names, with a note saying so. Raises AINotConfigured when there is no key at all.
+    """
     if not settings.configured:
         raise AINotConfigured("No AI provider is configured. Add GEMINI_API_KEY and/or GROQ_API_KEY.")
-    routes: list[Route] = []
-    if settings.gemini_api_key:
-        gemini = GeminiProvider(
-            settings.gemini_api_key, timeout_s=settings.timeout_s, base_url=settings.gemini_base_url
+    gemini = (
+        GeminiProvider(settings.gemini_api_key, timeout_s=settings.timeout_s, base_url=settings.gemini_base_url)
+        if settings.gemini_api_key
+        else None
+    )
+    groq = (
+        GroqProvider(settings.groq_api_key, timeout_s=settings.timeout_s, base_url=settings.groq_base_url)
+        if settings.groq_api_key
+        else None
+    )
+    found = Discovery()
+    if discover_models:
+        wants_gemini = gemini if gemini and not settings.gemini_models else None
+        wants_groq = groq if groq and not settings.groq_models else None
+        found = discover(
+            wants_gemini,
+            wants_groq,
+            cache_key=(settings.gemini_base_url, settings.groq_base_url, hash(settings.secrets)),
         )
-        routes += [Route(gemini, m) for m in settings.gemini_models]
-    if settings.groq_api_key:
-        groq = GroqProvider(settings.groq_api_key, timeout_s=settings.timeout_s, base_url=settings.groq_base_url)
-        routes += [Route(groq, m) for m in settings.groq_models]
-    return AIClient(routes, policy or RetryPolicy(), clock or Clock(), settings.secrets, settings.max_tokens_cap)
+    notes = list(found.notes)
+
+    def pick(
+        pinned: tuple[str, ...], discovered: tuple[str, ...], fallback: tuple[str, ...], label: str
+    ) -> tuple[str, ...]:
+        if pinned:
+            return pinned
+        if discovered:
+            return discovered
+        notes.append(
+            f"Using built-in {label} model names (unverified); set CAREERFORGE_{label.upper()}_MODELS to pin your own"
+        )
+        return fallback
+
+    routes: list[Route] = []
+    if gemini:
+        routes += [
+            Route(gemini, m) for m in pick(settings.gemini_models, found.gemini, FALLBACK_GEMINI_MODELS, "gemini")
+        ]
+    if groq:
+        routes += [Route(groq, m) for m in pick(settings.groq_models, found.groq, FALLBACK_GROQ_MODELS, "groq")]
+    client = AIClient(routes, policy or RetryPolicy(), clock or Clock(), settings.secrets, settings.max_tokens_cap)
+    client.notes = notes
+    return client

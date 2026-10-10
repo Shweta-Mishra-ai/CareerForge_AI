@@ -3,7 +3,7 @@ import pytest
 from careerforge.ai.errors import redact
 from careerforge.ai.jsonutil import JSONExtractError, JSONTruncatedError, extract_json
 from careerforge.ai.safety import fence, sanitize_source
-from careerforge.ai.settings import DEFAULT_GEMINI_MODELS, load_settings
+from careerforge.ai.settings import load_settings
 
 
 class TestExtractJson:
@@ -94,7 +94,7 @@ class TestSettingsAndRedaction:
 
     def test_unconfigured_and_defaults(self):
         s = load_settings({}, {})
-        assert not s.configured and s.gemini_models == DEFAULT_GEMINI_MODELS
+        assert not s.configured and s.gemini_models == () and s.groq_models == ()  # () = auto-discover
 
     @pytest.mark.parametrize(
         "secret", ["AIzaSyA1234567890abcdefghijklmnop", "gsk_abcdefghijklmnopqrstuvwxyz0123", "Bearer abc.def"]

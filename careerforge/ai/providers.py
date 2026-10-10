@@ -6,6 +6,7 @@ provider and testable without a network.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -30,6 +31,7 @@ from careerforge.ai.errors import (
     AIAuthError,
     AIBadRequest,
     AIModelNotFound,
+    AIQuotaExhausted,
     AIRateLimited,
     AIUnavailable,
 )
@@ -74,6 +76,10 @@ def _classify_status(status: int, message: str, retry_after: float | None = None
     if status == 404 or "decommissioned" in low or ("model" in low and ("not found" in low or "does not exist" in low)):
         return AIModelNotFound(f"Model not available ({status}): {message[:160]}")
     if status == 429:
+        # Heuristic on provider wording (unverified against live services): daily/zero quotas cannot recover within
+        # a retry window, so skip to the next model instead of backing off. A miss only costs time, never correctness.
+        if re.search(r"limit:\s*0\b|per\s*day|perday|\((?:rpd|tpd)\)|daily", low):
+            return AIQuotaExhausted("This model's free quota is used up or unavailable on this plan")
         return AIRateLimited("Rate limit or quota reached", retry_after)
     if status in (408, 409, 425) or status >= 500:
         return AIUnavailable(f"Provider error ({status})")
@@ -113,6 +119,21 @@ class GeminiProvider:
             raise AIBadRequest(f"Gemini declined to answer ({finish})")
         return Completion(text, self.name, model, truncated=(finish == "MAX_TOKENS"))
 
+    def list_models(self) -> list[str]:
+        """Model ids (without the 'models/' prefix) that can generate content with this key."""
+        try:
+            names = []
+            for m in self._client.models.list():
+                actions = getattr(m, "supported_actions", None) or []
+                if actions and "generateContent" not in actions:
+                    continue  # embedding/other-only models; if the field is absent we assume usable
+                names.append(str(m.name or "").removeprefix("models/"))
+        except genai_errors.APIError as exc:
+            raise _classify_status(int(exc.code or 0), str(exc.message or exc)) from exc
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            raise AIUnavailable(f"Network problem talking to Gemini: {type(exc).__name__}") from exc
+        return [n for n in names if n]
+
 
 class GroqProvider:
     name = "groq"
@@ -143,3 +164,18 @@ class GroqProvider:
             raise AIBadRequest("Groq returned no answer")
         choice = resp.choices[0]
         return Completion(choice.message.content or "", self.name, model, truncated=(choice.finish_reason == "length"))
+
+    def list_models(self) -> list[dict]:
+        """[{'id', 'active', 'context_window'}] as reported by Groq (fields may be missing)."""
+        try:
+            data = self._client.models.list().data
+        except GroqStatusError as exc:
+            message = str(getattr(exc, "message", "") or exc)
+            raise _classify_status(exc.status_code, message, _retry_after(exc.response.headers)) from exc
+        except (GroqTimeoutError, GroqConnectionError) as exc:
+            raise AIUnavailable(f"Network problem talking to Groq: {type(exc).__name__}") from exc
+        out = []
+        for m in data:
+            extra = m.model_extra or {}
+            out.append({"id": m.id, "active": extra.get("active", True), "context_window": extra.get("context_window")})
+        return out

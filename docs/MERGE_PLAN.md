@@ -113,6 +113,17 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
 * Extension: URL parsed (not substring-matched), no host permissions, success only after the copy resolved, honest
   labelling, tested in real Chromium. Selectors still depend on LinkedIn's markup.
 
+## Model selection (changed after Phase 3)
+* Model names are no longer hard-coded: `careerforge/ai/models.py` asks each provider which models the key can use,
+  ranks them (stable flash > flash-lite > pro > aliases > previews; Groq by JSON-following families and context),
+  keeps the top 3 per provider and caches for 1 h. `CAREERFORGE_*_MODELS` pins models and skips discovery. The old
+  names survive only as an unverified last-resort fallback, and the app says so when it uses them.
+* Neither provider's list API says which models are on the FREE plan. That is found empirically: a model with no free
+  quota fails fast (`AIQuotaExhausted`) and the cascade moves on without retrying.
+* Run `python -m careerforge.ai.doctor` with your keys: it prints what works for YOU right now and the settings to pin.
+* The provider docs could not be fetched from the build sandbox, and third-party summaries disagreed, so no free-tier
+  claim from them was relied on.
+
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).
 - Real-world PDF layouts beyond the generated ones (see Phase 3 notes).

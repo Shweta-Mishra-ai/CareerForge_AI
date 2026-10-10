@@ -1,8 +1,8 @@
 """AI settings: keys and model lists, from Streamlit secrets and/or environment.
 
-Model names are NOT hard-coded into logic. The defaults below are best guesses that may be retired by the
-providers; override them with CAREERFORGE_GEMINI_MODELS / CAREERFORGE_GROQ_MODELS (comma separated). A model
-that is no longer served is skipped automatically (AIModelNotFound) and the next one is tried.
+Models are discovered at runtime from each provider's own model list (see careerforge.ai.models), so no name can
+go stale. CAREERFORGE_GEMINI_MODELS / CAREERFORGE_GROQ_MODELS (comma separated) PIN specific models and skip
+discovery. The FALLBACK_* names below are only a last resort when discovery itself fails, and are unverified guesses.
 """
 
 from __future__ import annotations
@@ -11,16 +11,16 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-DEFAULT_GEMINI_MODELS = ("gemini-2.5-flash", "gemini-2.5-flash-lite")
-DEFAULT_GROQ_MODELS = ("llama-3.3-70b-versatile", "llama-3.1-8b-instant")
+FALLBACK_GEMINI_MODELS = ("gemini-2.5-flash", "gemini-2.5-flash-lite")
+FALLBACK_GROQ_MODELS = ("llama-3.3-70b-versatile", "llama-3.1-8b-instant")
 
 
 @dataclass(frozen=True)
 class AISettings:
     gemini_api_key: str = ""
     groq_api_key: str = ""
-    gemini_models: tuple[str, ...] = DEFAULT_GEMINI_MODELS
-    groq_models: tuple[str, ...] = DEFAULT_GROQ_MODELS
+    gemini_models: tuple[str, ...] = ()  # empty = discover automatically; non-empty = pinned by the user
+    groq_models: tuple[str, ...] = ()
     timeout_s: float = 45.0
     max_tokens: int = 4096
     max_tokens_cap: int = 16384
@@ -45,10 +45,9 @@ def _first(name: str, sources: tuple[Mapping[str, object], ...]) -> str:
     return ""
 
 
-def _models(name: str, sources: tuple[Mapping[str, object], ...], default: tuple[str, ...]) -> tuple[str, ...]:
+def _models(name: str, sources: tuple[Mapping[str, object], ...]) -> tuple[str, ...]:
     raw = _first(name, sources)
-    items = tuple(m.strip() for m in raw.split(",") if m.strip())
-    return items or default
+    return tuple(m.strip() for m in raw.split(",") if m.strip())
 
 
 def load_settings(secrets: Mapping[str, object] | None = None, env: Mapping[str, str] | None = None) -> AISettings:
@@ -57,6 +56,6 @@ def load_settings(secrets: Mapping[str, object] | None = None, env: Mapping[str,
     return AISettings(
         gemini_api_key=_first("GEMINI_API_KEY", sources),
         groq_api_key=_first("GROQ_API_KEY", sources),
-        gemini_models=_models("CAREERFORGE_GEMINI_MODELS", sources, DEFAULT_GEMINI_MODELS),
-        groq_models=_models("CAREERFORGE_GROQ_MODELS", sources, DEFAULT_GROQ_MODELS),
+        gemini_models=_models("CAREERFORGE_GEMINI_MODELS", sources),
+        groq_models=_models("CAREERFORGE_GROQ_MODELS", sources),
     )

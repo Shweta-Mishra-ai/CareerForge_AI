@@ -27,6 +27,10 @@ class AIBadRequest(AIError):
     """Provider refused the request (invalid params, safety block, context too long)."""
 
 
+class AIQuotaExhausted(AIError):
+    """This model's quota is used up (daily limit) or is zero on the current plan. Retrying cannot help; try another."""
+
+
 class AIRateLimited(AIError):
     retryable = True
 
