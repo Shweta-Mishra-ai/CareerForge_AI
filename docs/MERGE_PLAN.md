@@ -140,6 +140,15 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
   pdfplumber's linear extraction as a proxy for "a simple ATS"; JD parsing is rule-based and can miss unusual postings
   (paste more text or add sections); tested on generated documents and 3 sample postings, not on a real corpus.
 
+## Tailoring notes (Phase 4, second slice)
+* `careerforge/tailor/`: `verify` (deterministic rules) + `service` (AI proposes, code decides).
+* Outcomes per rewrite: **applied** (no new number/name/skill, keeps every number, meaning preserved), **needs_review**
+  (uses a posting term the original lacked: only the user can confirm it is true; `apply_proposal`), **rejected**
+  (invented or drifted; listed with reasons, never applied). A brand-new AI summary is always needs_review.
+* Companies, titles, dates, education and contact are never sent for rewriting. Skills are only re-ordered.
+* Result carries ATS before/after and an explicit note that rewording cannot create experience.
+* Not covered: tone/style quality of accepted rewrites is not judged, only their faithfulness.
+
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).
 - Real-world PDF layouts beyond the generated ones (see Phase 3 notes).
