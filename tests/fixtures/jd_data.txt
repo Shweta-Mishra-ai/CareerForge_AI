@@ -1,0 +1,4 @@
+Data Analyst
+Looking for a Data Analyst skilled in SQL, Tableau or Power BI, Python (Pandas), Excel and stakeholder
+communication. You will build dashboards, automate reporting and present insights to leadership.
+Snowflake or BigQuery experience is a plus. A/B testing and statistics knowledge preferred.

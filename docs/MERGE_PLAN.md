@@ -1,0 +1,71 @@
+# CareerForge AI v2: merge plan (CareerBoost AI → CareerForge AI)
+
+Status key: ✅ done · 🔄 in progress · ⬜ not started
+
+## Decisions (confirmed)
+| Topic | Decision |
+|---|---|
+| Deployment | Streamlit Community Cloud. PDF engine = WeasyPrint (needs `packages.txt`); no server-side Chromium |
+| UI stack | Stay on Streamlit; multipage via `st.navigation`, one design system |
+| Missing experience | **Never invent.** GitHub-only mode yields projects and skills; experience is user-entered in a review form. AI-written text is marked "suggested" until confirmed |
+| Workflow | Phase by phase; review after each phase group |
+
+## Core principle
+One typed `Profile` model (Pydantic) is the single source of truth. All text is escaped at render time (Jinja2 autoescape; XML-escape for any PDF/DOCX text API). Every AI output is schema-validated and grounding-checked against the source text. Failures are loud, never a success banner.
+
+## Phases
+| # | Phase | Status |
+|---|---|---|
+| 0 | Foundation: hygiene, pinned deps, ruff, pytest, CI, fixtures, characterisation tests | ✅ |
+| 1 | `Profile` model, JSON import/export (the user-held "profile file": history, tracker) | ⬜ |
+| 2 | AI layer: migrate to `google-genai`, retry/backoff, validated output, grounding checker, injection-safe prompts | ⬜ |
+| 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn-PDF/GitHub; SSRF-safe URL fetch; review-and-edit form | ⬜ |
+| 4 | Feature port (matrix below) | ⬜ |
+| 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
+| 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
+| 7 | Test hardening: Playwright e2e, visual regression, axe, security matrix, coverage gate | ⬜ |
+| 8 | Docs/release; archive `careerboost-ai` with a pointer README | ⬜ |
+
+## Feature matrix
+| Feature | From | Phase |
+|---|---|---|
+| PDF/URL/paste input, 7 templates, ATS + tailored CV, cover letter, interview prep, Chrome extension | CareerForge | kept/rebuilt 3–5 |
+| GitHub import, job search, HR finder + emails, skills roadmap, portfolio, Harvard/Modern PDF | CareerBoost | 4–5 |
+| ATS-only mode, multi-JD comparison | CF V2 | 4 |
+| Analytics dashboard (skill-gap radar, timeline, keyword heatmap) | CF V2 | 4 |
+| Section-level tips engine | CF V2 | 4 |
+| DOCX export | CF V2 | 5 |
+| Application tracker (kanban), scoring history (via profile file) | CB roadmap | 4 |
+| Multiple portfolio themes | CB roadmap | 5 |
+| Reverse mode (CV → LinkedIn sections) | CF V3 | 4 if time |
+| **Deferred:** LinkedIn OAuth (believed to need partner approval), Naukri (no known public API; scraping ToS risk), extension one-click ATS, "Caria" SaaS rewrite | both | not planned |
+
+## Audit backlog → where each is fixed (and which test flips)
+Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove the marker then.
+
+| Audit item | Fixed in | Regression test |
+|---|---|---|
+| Fabricated experience (`enrich_from_github_llm`), invented metrics in cover letter/interview prompts | 2, 4 | grounding tests (new) |
+| "Hallucination check" is LLM self-attestation | 2 | grounding tests (new) |
+| Parse failure shown as success; fixed 4096 token cap truncates ATS output | 2 | `test_garbage_response_raises` |
+| Substring skill matching (`R`, `go`, `ios`, `rag`, `java` in `javascript`) | 3 | skill-matching tests (new) |
+| No HTML escaping in templates/portfolio (XSS) | 5 | `test_name_and_skills_are_html_escaped[*]` |
+| `skills=None` crash; score `"85%"` crash; missing tailored_cv defaults | 1–2 | `test_none_skills_does_not_crash`, `test_analysis_scores_are_coerced_to_int`, `test_tailored_cv_gets_required_keys` |
+| Contact icon matches substring `up` | 5 | `test_contact_icon_not_fooled_by_substring_up` |
+| Unknown template silently falls back | 5 | `test_unknown_template_name_is_rejected` |
+| Slug-only LinkedIn stub passes the 50-char gate | 3 | `test_slug_only_result_is_too_thin_to_generate_from` |
+| SSRF in URL fetchers; no size/status checks | 3 | SSRF tests (new) |
+| reportlab crash on `<b>` / `a<b` text; hyphen-splitting destroys bullets (CareerBoost code) | 5 (re-tested on ported code) | PDF text tests (new) |
+| Eager LLM calls on every rerun (≈5 per Generate); no retry/backoff | 2, 6 | AppTest call-count test (new) |
+| Cached failures (`[Failed…]` letter, unretryable interview prep) | 6 | AppTest (new) |
+| Stale cache keys (filename-only; email/phone edits ignored) | 1, 6 | AppTest (new) |
+| Dead Adzuna/Muse fallbacks, swallowed errors in job search | 4 | provider tests with recorded responses |
+| Extension: loose URL check, over-broad permission, false success message | 3 | extension unit tests |
+| `google-generativeai` package is end-of-life (confirmed by its own warning) | 2 | import test |
+| Unused deps (`httpx`, `lxml`), phantom docstring claims, README claims we can't back | 0 (CareerBoost side), 8 | n/a |
+
+## Open unknowns (verify, do not assume)
+- Which Gemini model IDs are currently served; model names will live in config and be checked at startup.
+- Live job-API behaviour (Remotive, Jobicy): to be recorded once and replayed in tests.
+- `pdfplumber(layout=True)` column interleaving on two-column CVs: to be tested with `cv_two_column.txt`-style PDFs in Phase 3.
+- Whether Streamlit Cloud sanitises `data:` download links: replaced by `st.download_button` regardless.

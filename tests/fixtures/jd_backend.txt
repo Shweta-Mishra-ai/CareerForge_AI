@@ -1,0 +1,4 @@
+Senior Backend Engineer - Payments
+We are hiring a Senior Backend Engineer to build high-throughput payment services.
+Requirements: 5+ years of Python or Go; experience with Kafka, PostgreSQL, Redis; Kubernetes and Docker;
+AWS; REST API design; CI/CD; mentoring engineers; strong testing culture. Nice to have: Terraform, gRPC.

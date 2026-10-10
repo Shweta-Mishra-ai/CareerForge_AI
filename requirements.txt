@@ -1,6 +1,6 @@
-streamlit
-pdfplumber
-requests
-beautifulsoup4
-google-generativeai
-groq
+streamlit==1.65.0
+pdfplumber==0.11.10
+requests==2.34.2
+beautifulsoup4==4.15.0
+google-generativeai==0.8.6
+groq==1.7.0

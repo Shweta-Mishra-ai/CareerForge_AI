@@ -1,0 +1,3 @@
+DevOps Engineer
+Own our cloud platform: Kubernetes, Terraform, Docker, AWS, GitHub Actions or Jenkins, Linux, Bash.
+Experience with Prometheus/Grafana, Helm, ansible and incident response is required. Python scripting a plus.

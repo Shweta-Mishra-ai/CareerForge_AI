@@ -1,0 +1,20 @@
+Arjun Mehta
+arjun.mehta@example.com
+Moradabad, UP, India
+GitHub: github.com/arjun-demo
+
+OBJECTIVE
+Final-year student looking for a software role.
+
+EDUCATION
+B.Tech Information Technology, Demo Institute of Technology, 2021-2025, 8.1 CGPA
+
+PROJECTS
+Expense Tracker - React, Node.js, MongoDB
+Built a full-stack web app to track expenses with charts.
+
+Chatbot for college FAQs - Python, Flask
+Built a retrieval chatbot that answers admission questions.
+
+SKILLS
+Python, JavaScript, React, Node.js, MongoDB, Git

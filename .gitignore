@@ -1,55 +1,37 @@
-# ===========================
 # Python
-# ===========================
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-*.egg
 *.egg-info/
-dist/
 build/
-.eggs/
-
-# ===========================
-# Virtual Environment
-# ===========================
-venv/
-.env/
+dist/
 .venv/
+venv/
 env/
 
-# ===========================
-# Logs & Debug Files (DELETE THESE FROM REPO TOO)
-# ===========================
-log.txt
-log_detail.txt
-git_history.txt
-*.log
-
-# ===========================
-# Temp / Test Artifacts
-# ===========================
-temp_*.py
-test.html
-*.tmp
-
-# ===========================
-# Streamlit Secrets (NEVER commit)
-# ===========================
+# Secrets - never commit real keys (commit the *.example files only)
 .streamlit/secrets.toml
+.env
+.env.*
+!.env.example
 
-# ===========================
-# OS Files
-# ===========================
+# Logs and temp
+*.log
+log*.txt
+server_logs.txt
+*.tmp
+temp_*.py
+
+# Test / tooling artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+tests/e2e/artifacts/
+test-results/
+
+# OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-
-# ===========================
-# API Keys / Env
-# ===========================
-.env
-*.env

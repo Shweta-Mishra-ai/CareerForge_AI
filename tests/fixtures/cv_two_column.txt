@@ -1,0 +1,11 @@
+SAMEER KHAN                                   CONTACT
+Data Analyst                                  sameer.khan@example.com
+                                              Pune, India
+PROFILE                                       linkedin.com/in/sameer-demo
+Analyst with 3 years in SQL and BI.
+                                              SKILLS
+WORK HISTORY                                  SQL, Power BI, Excel,
+Data Analyst, RetailCo (2022 - Present)       Python, Pandas, Tableau
+* Built 12 Power BI dashboards for sales.
+* Automated weekly reports in Python,          LANGUAGES
+  saving 6 hours per week.                     English, Hindi, Urdu
