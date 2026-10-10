@@ -29,5 +29,6 @@ addopts = "-ra --strict-markers"
 markers = [
     "e2e: browser tests (Playwright); need a running app and Chromium",
     "visual: screenshot/PDF baseline comparisons",
+    "live: touches real provider APIs; needs keys, run manually",
 ]
 xfail_strict = true

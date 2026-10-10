@@ -16,4 +16,4 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check careerforge tests
-      - run: pytest --cov --cov-report=term-missing -m "not e2e and not visual"
+      - run: pytest --cov --cov-report=term-missing -m "not e2e and not visual and not live"

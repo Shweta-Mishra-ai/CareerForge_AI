@@ -3,5 +3,8 @@ pydantic==2.13.5
 pdfplumber==0.11.10
 requests==2.34.2
 beautifulsoup4==4.15.0
-google-generativeai==0.8.6
+httpx==0.28.1
+google-genai==2.29.0
 groq==1.7.0
+# LEGACY - only imported by core/ai_engine.py, which is replaced in Phase 6. The package is end-of-life.
+google-generativeai==0.8.6

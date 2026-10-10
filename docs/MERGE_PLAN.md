@@ -46,7 +46,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 |---|---|---|
 | 0 | Foundation: hygiene, pinned deps, ruff, pytest, CI, fixtures, characterisation tests | ✅ |
 | 1 | `Profile` model, JSON import/export, legacy adapter, skills taxonomy, **submission-readiness gate** | ✅ |
-| 2 | AI layer: migrate to `google-genai`, retry/backoff, validated output, grounding checker, injection-safe prompts | ⬜ |
+| 2 | AI layer: `google-genai` + Groq cascade, retry/backoff, validated output, grounding checker, injection-safe extraction | ✅ (rewrite/tailor prompts + rewrite-mode grounding land with their features in Phase 4) |
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn-PDF/GitHub; SSRF-safe URL fetch; review-and-edit form | ⬜ |
 | 4 | Feature port (matrix below) | ⬜ |
 | 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
@@ -92,8 +92,17 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
 | `google-generativeai` package is end-of-life (confirmed by its own warning) | 2 | import test |
 | Unused deps (`httpx`, `lxml`), phantom docstring claims, README claims we can't back | 0 (CareerBoost side), 8 | n/a |
 
+## Phase 2 notes
+* `careerforge/ai/`: `providers` (Gemini, Groq; no hidden SDK retries - verified), `client` (cascade, backoff, deadline,
+  repair-retry, token-budget growth on truncation), `grounding` (deterministic), `safety` (sanitise + fence),
+  `extract` (document text -> grounded Profile), `settings` (keys/models from secrets/env).
+* Offline tests run the **real SDKs** against a local fake server. They prove our request construction and error
+  mapping, not that the live services match the fake. Run `pytest -m live -s tests/test_ai_live_smoke.py` with real keys
+  to verify model names and wire formats (manual; excluded from CI).
+* Legacy `core/ai_engine.py` still imports the end-of-life `google-generativeai`; it is removed with `app.py` in Phase 6.
+
 ## Open unknowns (verify, do not assume)
-- Which Gemini model IDs are currently served; model names will live in config and be checked at startup.
+- Which Gemini/Groq model IDs are currently served. Defaults in `careerforge/ai/settings.py` are best guesses; override with `CAREERFORGE_GEMINI_MODELS` / `CAREERFORGE_GROQ_MODELS`. Unserved models are skipped automatically; confirm with the live smoke test.
 - Live job-API behaviour (Remotive, Jobicy): to be recorded once and replayed in tests.
 - `pdfplumber(layout=True)` column interleaving on two-column CVs: to be tested with `cv_two_column.txt`-style PDFs in Phase 3.
 - Whether Streamlit Cloud sanitises `data:` download links: replaced by `st.download_button` regardless.
