@@ -13,11 +13,39 @@ Status key: ✅ done · 🔄 in progress · ⬜ not started
 ## Core principle
 One typed `Profile` model (Pydantic) is the single source of truth. All text is escaped at render time (Jinja2 autoescape; XML-escape for any PDF/DOCX text API). Every AI output is schema-validated and grounding-checked against the source text. Failures are loud, never a success banner.
 
+## Goal pipeline: old CV or LinkedIn profile → ready-to-submit CV + portfolio
+```
+ old CV (PDF/DOCX/TXT) ─┐
+ LinkedIn "Save to PDF" ─┤→ ingest → Profile draft → REVIEW/EDIT → improve (grounded, suggestions) →
+ LinkedIn data export ───┤                                          readiness gate → export CV + portfolio
+ GitHub / paste / ext. ──┘
+```
+* **Review/edit is mandatory** before any export: extraction is never trusted blindly (Phase 3 UI).
+* **Improve** = rewrite weak bullets, add missing keywords the candidate really has, tailor to a JD. Every change is
+  shown as a diff; text not traceable to the source is flagged `suggested` and excluded until confirmed (Phase 2/4).
+* **Readiness gate** (`careerforge/readiness.py`, done): blockers (name, email, placeholders, nothing to show), warnings
+  (no dates, first person, gaps), tips (quantify). Exporters must call `require_ready()` (Phase 5).
+* LinkedIn: official sources only. Phase 3 supports the profile "Save to PDF" and the LinkedIn *data export* archive
+  (CSV files) and the Chrome-extension paste. A LinkedIn URL alone cannot be read; the app says so honestly.
+  The data-export CSV layout must be verified against a real export before relying on it.
+
+## ATS v2 (Phase 4): a transparent, mostly deterministic score
+The old ATS score was a number an LLM made up. v2 is built from components you can see and verify:
+1. **Keyword coverage** - required vs preferred terms extracted from the JD, matched with word boundaries, aliases and
+   the skills taxonomy (so `k8s` = Kubernetes), weighted by where they appear (skills, recent role, bullets).
+2. **Section & structure** - standard headings present, reverse-chronological, dates parseable, contact in the body.
+3. **Parseability of the *actual exported PDF*** - extract its text and check order, single column, no tables/images
+   carrying content, fonts embedded. This is tested on the real artifact, not guessed.
+4. **Content quality** - quantified bullets, action verbs, length, no first person (shares rules with readiness).
+5. **LLM only for explanation and semantic gaps** (never for the number), with evidence quotes from the CV and JD.
+Output: component scores, the exact missing keywords, and line-level fixes. Limits we will state in the UI: no
+tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the score is a well-grounded proxy.
+
 ## Phases
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundation: hygiene, pinned deps, ruff, pytest, CI, fixtures, characterisation tests | ✅ |
-| 1 | `Profile` model, JSON import/export (the user-held "profile file": history, tracker) | ⬜ |
+| 1 | `Profile` model, JSON import/export, legacy adapter, skills taxonomy, **submission-readiness gate** | ✅ |
 | 2 | AI layer: migrate to `google-genai`, retry/backoff, validated output, grounding checker, injection-safe prompts | ⬜ |
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn-PDF/GitHub; SSRF-safe URL fetch; review-and-edit form | ⬜ |
 | 4 | Feature port (matrix below) | ⬜ |

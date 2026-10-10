@@ -1,4 +1,5 @@
 streamlit==1.65.0
+pydantic==2.13.5
 pdfplumber==0.11.10
 requests==2.34.2
 beautifulsoup4==4.15.0

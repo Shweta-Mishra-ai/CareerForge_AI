@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 license = { file = "LICENSE" }
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py311"
 extend-exclude = ["chrome_extension"]
 
