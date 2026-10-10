@@ -1,0 +1,14 @@
+.head { background: var(--accent); color: #fff; padding: 1.1em 1.2em; margin: 0 0 0.9em; }
+.head h1 { font-size: 2.2em; line-height: 1.05; }
+.headline { font-size: 1.15em; margin-top: 0.15em; }
+.cols { display: flex; gap: 1.4em; align-items: flex-start; }
+aside { flex: 0 0 30%; background: #f1f3f5; padding: 0.8em 0.9em; }
+main { flex: 1 1 0; min-width: 0; }
+aside .sec:first-child { margin-top: 0; }
+aside .contact { display: block; }
+aside .contact li { margin-top: 0.2em; overflow-wrap: anywhere; }
+aside .sec h2, main .sec h2 { font-size: 1.02em; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); border-bottom: 1.2pt solid var(--accent); padding-bottom: 0.1em; margin-bottom: 0.4em; }
+aside .row { display: block; }
+aside .when { display: block; }
+aside .skills p + p { margin-top: 0.4em; }
+aside .cat { display: block; }

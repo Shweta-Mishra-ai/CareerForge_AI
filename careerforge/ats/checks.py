@@ -119,6 +119,17 @@ class ParseResult:
     notes: tuple[str, ...] = field(default_factory=tuple)
 
 
+def _text_tables(page: pdfplumber.page.Page) -> int:
+    """Tables that really hold text in a grid. Ruled headings are drawn as thin rectangles that pdfplumber also treats
+    as table edges, so a table only counts if at least two of its rows have text in two or more cells."""
+    count = 0
+    for table in page.find_tables():
+        filled = [sum(1 for cell in row if cell and cell.strip()) for row in table.extract()]
+        if sum(1 for n in filled if n >= 2) >= 2:
+            count += 1
+    return count
+
+
 def _linear_text(data: bytes, max_pages: int = 20) -> tuple[str, int, int, int]:
     """Stream-order text as a simple ATS would read it, plus (pages, tables, images)."""
     texts, tables, images = [], 0, 0
@@ -126,7 +137,7 @@ def _linear_text(data: bytes, max_pages: int = 20) -> tuple[str, int, int, int]:
         pages = len(pdf.pages)
         for page in pdf.pages[:max_pages]:
             texts.append(page.extract_text() or "")
-            tables += len(page.find_tables())
+            tables += _text_tables(page)
             images += len(page.images)
     return "\n".join(texts), pages, tables, images
 
@@ -203,7 +214,9 @@ def check_pdf(data: bytes, p: Profile) -> ParseResult:
             )
 
     lines = [ln.strip().rstrip(":").lower() for ln in linear.splitlines() if 2 < len(ln.strip()) <= 40]
-    missing = [k for k, pat in _SECTION_NAMES.items() if not any(re.fullmatch(pat, ln) for ln in lines)]
+    # a fresher with no jobs is not expected to have an Experience heading
+    present = {"experience": bool(p.experience), "education": bool(p.education), "skills": bool(p.skills)}
+    missing = [k for k, pat in _SECTION_NAMES.items() if present[k] and not any(re.fullmatch(pat, ln) for ln in lines)]
     checks.append(
         Check("Standard section headings (Experience, Education, Skills)", not missing, 10, ", ".join(missing))
     )

@@ -187,3 +187,39 @@ def test_hostile_fixture_shaped_profile_is_not_ready():
     )
     r = check(p, today=TODAY)
     assert not r.ready and {"R005", "R007"} <= codes(r, "blocker")
+
+
+class TestYearsClaim:
+    def codes(self, summary, headline="Backend Engineer", **over):
+        return [
+            (i.severity, i.code)
+            for i in check(good(summary=summary, headline=headline, **over), today=TODAY).issues
+            if i.code == "R020"
+        ]
+
+    # good(): Mar 2021 -> now (5 y 2 m) plus an earlier role, see the fixture for the exact span
+
+    def test_overclaim_is_a_warning(self):
+        assert self.codes("Engineer with 15 years of experience in Python.") == [("warning", "R020")]
+
+    def test_underclaim_is_only_a_tip(self):
+        assert self.codes("Engineer with 1 year of experience in Python.") == [("tip", "R020")]
+
+    def test_claim_within_a_year_of_the_dates_is_fine(self):
+        computed = __import__("careerforge.ats.match", fromlist=["x"]).experience_months(good(), TODAY) // 12
+        assert self.codes(f"Engineer with {computed} years of experience.") == []
+        assert self.codes(f"Engineer with {computed + 1}+ years of experience.") == []
+
+    def test_headline_claims_are_checked_too(self):
+        assert self.codes("Engineer.", headline="Engineer, 20 years experience") == [("warning", "R020")]
+
+    def test_other_uses_of_years_are_not_claims(self):
+        assert self.codes("Led a 12 year migration of legacy systems to the cloud.") == []
+        assert self.codes("Shipped the product 9 years ago.") == []
+
+    def test_no_dated_roles_means_nothing_to_compare(self):
+        undated = [Experience(title="Engineer", company="X", bullets=["Built the thing end to end for customers"])]
+        assert self.codes("Engineer with 15 years of experience.", experience=undated) == []
+
+    def test_no_experience_at_all_is_not_flagged_here(self):
+        assert self.codes("Student with 3 years of experience in Python.", experience=[]) == []

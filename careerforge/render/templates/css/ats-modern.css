@@ -1,0 +1,8 @@
+:root { --muted: #3f4650; }
+.head h1 { font-size: 2.3em; line-height: 1.05; color: var(--accent); font-weight: 800; }
+.headline { font-size: 1.2em; margin-top: 0.1em; font-weight: 600; }
+.head .contact { margin-top: 0.5em; color: var(--muted); }
+.contact li:not(:last-child)::after { content: "\2022"; margin-left: 0.9em; color: var(--accent); }
+.head a { color: var(--accent); }
+.sec h2 { font-size: 1.05em; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; padding-left: 0.6em; border-left: 3pt solid var(--accent); margin-bottom: 0.45em; line-height: 1.2; }
+.bul li::before { color: var(--accent); }

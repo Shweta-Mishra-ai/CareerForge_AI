@@ -49,7 +49,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | 2 | AI layer: `google-genai` + Groq cascade, retry/backoff, validated output, grounding checker, injection-safe extraction | ✅ (rewrite/tailor prompts + rewrite-mode grounding land with their features in Phase 4) |
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn (PDF + data export)/GitHub; SSRF-safe URL fetch; extension fixes; review logic | ✅ (the Streamlit review-and-edit *form* is built with the UI in Phase 6; its logic, `careerforge/review.py`, is done) |
 | 4 | Feature port (matrix below) | ✅ ATS v2, ATS-only mode, multi-JD comparison, tailoring, cover letter, interview prep, job search, outreach, roadmap, analytics + section tips, tracker. Not built: Reverse mode (CV -> LinkedIn sections, optional) |
-| 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
+| 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/TXT/HTML export, ATS-safe variants, 3 portfolio themes | ✅ (`careerforge/render/`) |
 | 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
 | 7 | Test hardening: Playwright e2e, visual regression, axe, security matrix, coverage gate | ⬜ |
 | 8 | Docs/release; archive `careerboost-ai` with a pointer README | ⬜ |
@@ -157,6 +157,25 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
   candidate's "likely background", the Muse/Adzuna fallbacks that sent empty credentials.
 * Job search is NOT verified against the live Remotive/Jobicy/Adzuna APIs (field names from the old app's working code).
   Run it once with a real network to confirm; failures are reported per provider.
+
+## Rendering notes (Phase 5)
+* One structure (`view.build_blocks`) feeds HTML, DOCX and TXT, so the formats cannot drift apart. Every export calls
+  `require_ready()` (blocks sample emails, placeholders, empty CVs; drops unconfirmed AI items). `preview_html` is the only
+  ungated path and shows a "Draft preview" banner.
+* Templates: ats-classic, ats-modern, executive (all single column, 100/100 on the in-house PDF parse check for the test
+  profiles) and "Designed Sidebar" (two columns, **flagged as not ATS-safe**; scores ~68 and says why).
+* PDF text is re-read with the ATS parser after rendering and the result is attached to the export.
+* Fonts: only Arial/Times/Calibri-compatible families (Liberation, Carlito) via `packages.txt`. Non-Latin names
+  (CJK, Arabic) render and extract here only because this sandbox happens to have fallback fonts; on Streamlit Cloud they
+  need extra font packages. **Not verified on Streamlit Cloud.**
+* Portfolio: single `index.html`, inline CSS, no JS/fonts/images/CDN, CSP meta (`default-src 'none'`), JSON-LD built with
+  `tojson`, skip link, landmarks, WCAG AA contrast checked on the palette *and* on computed colours in Chromium.
+  Phone number is opt-in; stats are computed (years rounded down); no About text is invented.
+* Found and fixed while building this: ATS table check counted ruled headings as tables; ATS section check demanded an
+  Experience heading from freshers; wide letter-spacing splits words for the layout-aware reader (capped at 0.05em, tested);
+  `DateRange` printed "2018 - 2018"; new readiness rule R020 (summary claims N years vs. dates).
+* Known gaps (backlog): letter-spaced headings in *uploaded* CVs ("S K I L L S") are not collapsed by the PDF reader;
+  DOCX was inspected visually via LibreOffice only (not Word); sidebar template reading order is poor by design.
 
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).

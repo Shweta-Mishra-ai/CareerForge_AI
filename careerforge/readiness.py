@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
+from careerforge.ats.match import experience_months
 from careerforge.models import Profile
 from careerforge.text import date_key, display_date
 
@@ -46,6 +47,12 @@ _WEAK_START = re.compile(
     r"^(?:responsible for|worked on|helped|assisted|involved in|participated in|duties included)\b", re.I
 )
 _HAS_NUMBER = re.compile(r"\d")
+# "7 years of experience" / "with 7 years ..."; a bare "a 5 year migration" is not a claim about total experience
+_YEARS_CLAIM = re.compile(
+    r"\b(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b[^.]{0,40}\b(?:experience|expertise|background|career)\b"
+    r"|\b(?:with|over|nearly|almost|about|around)\s+(\d{1,2})\s*\+?\s*(?:years?|yrs?)\b",
+    re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -186,6 +193,15 @@ def check(profile: Profile, *, today: date | None = None) -> Readiness:
         add("warning", "R012", "summary", "Avoid first person (I/my/me) in the summary")
     if len(all_bullets) >= 3 and sum(bool(_HAS_NUMBER.search(b)) for _, b in all_bullets) / len(all_bullets) < 0.3:
         add("tip", "R011", "experience", "Few bullets contain numbers; quantify results (%, users, time saved)")
+
+    # a claimed total ("7 years of experience") should match the dated roles
+    claim = _YEARS_CLAIM.search(f"{p.headline}. {p.summary}")
+    if claim and p.experience and any(e.dates.start for e in p.experience):
+        claimed, computed = int(claim.group(1) or claim.group(2)), experience_months(p, today) // 12
+        if claimed - computed >= 2:
+            add("warning", "R020", "summary", f"Says {claimed} years, but your dated roles add up to about {computed}")
+        elif computed - claimed >= 2:
+            add("tip", "R020", "summary", f"Says {claimed} years, but your dated roles add up to about {computed}")
 
     # gaps between consecutive roles
     dated = sorted((e for e in p.experience if e.dates.start), key=lambda e: date_key(e.dates.start))

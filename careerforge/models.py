@@ -109,7 +109,7 @@ class DateRange(_Model):
     def display(self) -> str:
         if self.current:
             return f"{display_date(self.start)} – Present" if self.start else "Present"
-        if self.start and self.end:
+        if self.start and self.end and self.start != self.end:
             return f"{display_date(self.start)} – {display_date(self.end)}"
         return display_date(self.start or self.end)
 

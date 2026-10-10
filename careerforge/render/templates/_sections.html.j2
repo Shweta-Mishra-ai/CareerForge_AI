@@ -1,0 +1,43 @@
+{# Section renderer shared by every CV template. Values are autoescaped by the Jinja environment. #}
+{% macro bullets(items) -%}
+{%- if items %}<ul class="bul">{% for b in items %}<li>{{ b }}</li>{% endfor %}</ul>{% endif -%}
+{%- endmacro %}
+
+{% macro section(block) -%}
+<section class="sec sec-{{ block.name }}">
+<h2>{{ block.title }}</h2>
+{% if block.paragraph %}
+<p>{{ block.paragraph }}</p>
+{% endif %}
+{% for e in block.entries %}
+<div class="entry">
+  <div class="row"><h3>{{ e.head }}</h3>{% if e.when %}<span class="when">{% if e.url %}<a href="{{ e.url }}">{{ e.when }}</a>{% else %}{{ e.when }}{% endif %}</span>{% endif %}</div>
+  {% if e.sub %}<div class="sub">{{ e.sub }}</div>{% endif %}
+  {% if e.text %}<p>{{ e.text }}</p>{% endif %}
+  {{ bullets(e.bullets) }}
+</div>
+{% endfor %}
+{% if block.skills %}
+<div class="skills">
+{% for label, names in block.skills %}
+<p>{% if label %}<span class="cat">{{ label }}:</span> {% endif %}{{ names }}</p>
+{% endfor %}
+</div>
+{% endif %}
+</section>
+{%- endmacro %}
+
+{% macro contact_list(contact) -%}
+<ul class="contact">
+{% for c in contact %}<li>{% if c.href %}<a href="{{ c.href }}">{{ c.text }}</a>{% else %}{{ c.text }}{% endif %}</li>
+{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro header(p, contact) -%}
+<header class="head">
+  <h1>{{ p.name }}</h1>
+  {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
+  {% if contact %}{{ contact_list(contact) }}{% endif %}
+</header>
+{%- endmacro %}

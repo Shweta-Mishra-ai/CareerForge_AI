@@ -1,0 +1,7 @@
+.head { text-align: center; padding-bottom: 0.7em; border-bottom: 0.8pt solid var(--accent); }
+.head h1 { font-size: 2.4em; font-weight: 400; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.1; }
+.headline { font-size: 1.15em; font-style: italic; margin-top: 0.25em; color: var(--accent); }
+.head .contact { justify-content: center; margin-top: 0.5em; color: var(--muted); }
+.contact li:not(:last-child)::after { content: "\00b7"; margin-left: 0.9em; }
+.sec h2 { font-size: 1.05em; font-weight: 700; text-align: center; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5em; }
+.sec-summary p { text-align: center; font-style: italic; }

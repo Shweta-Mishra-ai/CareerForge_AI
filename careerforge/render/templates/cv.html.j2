@@ -1,0 +1,40 @@
+{% from "_sections.html.j2" import section, header, contact_list -%}
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="CareerForge">
+<title>{{ p.name }} - CV</title>
+<meta name="author" content="{{ p.name }}">
+{% if description %}<meta name="description" content="{{ description }}">{% endif %}
+<style>
+{% include "css/base.css" %}
+{% include "css/" ~ template ~ ".css" %}
+</style>
+</head>
+<body class="t-{{ template }}">
+{% if draft %}<p class="draft-banner" style="background:#fff3cd;padding:6px 10px;font:12px sans-serif">Draft preview: this CV is not ready to submit yet.</p>{% endif %}
+{% if template == "sidebar" %}
+{{ header(p, []) }}
+<div class="cols">
+<aside>
+<section class="sec sec-contact"><h2>Contact</h2>
+{{ contact_list(contact) }}</section>
+{% for b in blocks if b.name in side %}{{ section(b) }}
+{% endfor %}
+</aside>
+<main>
+{% for b in blocks if b.name not in side %}{{ section(b) }}
+{% endfor %}
+</main>
+</div>
+{% else %}
+{{ header(p, contact) }}
+<main>
+{% for b in blocks %}{{ section(b) }}
+{% endfor %}
+</main>
+{% endif %}
+</body>
+</html>

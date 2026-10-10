@@ -1,0 +1,6 @@
+.head { padding-bottom: 0.5em; border-bottom: 1.2pt solid var(--ink); }
+.head h1 { font-size: 2.1em; line-height: 1.1; letter-spacing: 0.01em; }
+.headline { font-size: 1.15em; margin-top: 0.15em; }
+.head .contact { margin-top: 0.45em; color: var(--muted); }
+.contact li:not(:last-child)::after { content: "|"; margin-left: 0.9em; color: #888; }
+.sec h2 { font-size: 1.05em; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 0.6pt solid #777; padding-bottom: 0.1em; margin-bottom: 0.4em; }
