@@ -143,3 +143,25 @@ def test_dates_and_sidebars_edge_cases():
     )
     t = text_of(pdf_from_html(rows)).replace("\n", " ")
     assert_order(t, ["Role 1", "Short.", "Role 2", "Role 4"])
+
+
+def test_right_aligned_dates_and_links_stay_with_their_entries():
+    """Regression: a lone date and a URL on far-apart rows were read as a separate column, after everything else."""
+    body = """<h2>EDUCATION</h2>
+    <div style="display:flex;justify-content:space-between"><b>B.Tech Information Technology</b><span>2021 - 2025</span></div>
+    <p>Demo Institute of Technology, 8.1 CGPA</p>
+    <h2>PROJECTS</h2>
+    <div style="display:flex;justify-content:space-between"><b>Expense Tracker</b><span>github.com/arjun-demo/expense-tracker</span></div>
+    <p>React, Node.js, MongoDB</p><p>Built a full-stack web app to track expenses with charts.</p>
+    <h2>SKILLS</h2><p>Python, JavaScript</p>"""
+    t = text_of(pdf_from_html(body))
+    flat = t.replace("\n", " ")
+    assert "B.Tech Information Technology 2021 - 2025" in flat
+    assert "Expense Tracker github.com/arjun-demo/expense-tracker" in flat
+    assert_order(t, ["EDUCATION", "Demo Institute", "PROJECTS", "Expense Tracker", "charts.", "SKILLS"])
+
+
+def test_a_real_two_row_sidebar_next_to_a_main_column_is_still_a_column():
+    body = """<div style="display:flex"><div style="width:30%"><h3>SKILLS</h3><p>SQL<br>Excel<br>Python</p></div>
+    <div style="width:70%"><h3>EXPERIENCE</h3><p>Analyst at RetailCo</p><p>Built dashboards for sales.</p></div></div>"""
+    assert_order(text_of(pdf_from_html(body)), ["SKILLS", "Python", "EXPERIENCE", "RetailCo", "dashboards"])

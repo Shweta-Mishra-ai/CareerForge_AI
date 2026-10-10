@@ -58,4 +58,16 @@ def load_settings(secrets: Mapping[str, object] | None = None, env: Mapping[str,
         groq_api_key=_first("GROQ_API_KEY", sources),
         gemini_models=_models("CAREERFORGE_GEMINI_MODELS", sources),
         groq_models=_models("CAREERFORGE_GROQ_MODELS", sources),
+        gemini_base_url=_url("CAREERFORGE_GEMINI_BASE_URL", sources),
+        groq_base_url=_url("CAREERFORGE_GROQ_BASE_URL", sources),
     )
+
+
+def _url(name: str, sources: tuple[Mapping[str, object], ...]) -> str | None:
+    """Operator-only override of a provider endpoint (a proxy, or a local fake in tests). http(s) only."""
+    value = _first(name, sources)
+    if not value:
+        return None
+    if not value.startswith(("http://", "https://")):
+        raise ValueError(f"{name} must start with http:// or https://")
+    return value.rstrip("/")

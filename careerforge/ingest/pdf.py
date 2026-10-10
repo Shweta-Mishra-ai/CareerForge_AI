@@ -25,6 +25,9 @@ from careerforge.text import clean_text
 MAX_PAGES = 20
 MIN_GUTTER_PT = 14.0  # smallest blank vertical strip treated as a column gutter
 MIN_SIDE_SHARE = 0.12  # each side of a column split must hold at least this share of the words
+MIN_COLUMN_ROWS = 2  # a real column has at least this many text rows
+MIN_LONGEST_COLUMN = 3  # ... and at least one of the two columns has this many
+MAX_ROW_JUMP = 4.0  # ... and no jump between its consecutive rows larger than this many text heights
 DATE_SIDE = 0.8  # a side made (almost) only of date tokens is a "role ... dates" column, not a real column
 _BULLET_ONLY = re.compile(r"^[•·▪▫◦‣∙●○■□►▶*\-–—]+$")
 
@@ -53,8 +56,10 @@ def _gaps(intervals: list[tuple[float, float]], lo: float, hi: float, min_gap: f
     return gaps
 
 
-def _best_cut(words: list[Word], axis: str, min_gap: float) -> float | None:
-    """Midpoint of the widest usable gap along x ('v') or y ('h'), or None."""
+def _best_cut(words: list[Word], axis: str, min_gap: float, *, strict: bool = False) -> float | None:
+    """Midpoint of the widest usable gap along x ('v') or y ('h'), or None.
+
+    `strict` (used only when about to split columns) also rejects sides that are sparse right-aligned metadata."""
     if axis == "v":
         spans = [(w.x0, w.x1) for w in words]
         lo, hi = min(w.x0 for w in words), max(w.x1 for w in words)
@@ -67,8 +72,10 @@ def _best_cut(words: list[Word], axis: str, min_gap: float) -> float | None:
         left = [w for w in words if (w.x1 if axis == "v" else w.bottom) <= cut]
         right = [w for w in words if (w.x0 if axis == "v" else w.top) >= cut]
         if axis == "v":
-            if min(len(left), len(right)) / len(words) < MIN_SIDE_SHARE or any(
-                _is_date_column(x) for x in (left, right)
+            if (
+                min(len(left), len(right)) / len(words) < MIN_SIDE_SHARE
+                or any(_is_date_column(x) for x in (left, right))
+                or (strict and (any(_is_sparse(x) for x in (left, right)) or _too_small_for_columns(left, right)))
             ):
                 continue
         best = cut
@@ -88,6 +95,31 @@ def _is_date_column(words: list[Word]) -> bool:
     Reading such a side as its own column would separate every role from its date, so it is kept in the row.
     """
     return sum(bool(_DATE_TOKEN.match(w.text)) for w in words) / len(words) >= DATE_SIDE
+
+
+def _row_tops(words: list[Word]) -> tuple[list[float], float]:
+    """Distinct text rows (top coordinates) of a set of words, and the typical text height."""
+    height = median(w.bottom - w.top for w in words) or 10.0
+    tops = sorted({round(w.top / (height * 0.5)) * (height * 0.5) for w in words})
+    rows: list[float] = []
+    for t in tops:
+        if not rows or t - rows[-1] > height * 0.75:  # rows closer than that are the same row
+            rows.append(t)
+    return rows, height
+
+
+def _is_sparse(words: list[Word]) -> bool:
+    """True when the words sit on a few, far-apart rows (right-aligned dates, URLs, locations) rather than forming a
+    text column. A column's rows are contiguous; metadata rows are separated by many lines of other text."""
+    rows, height = _row_tops(words)
+    if len(rows) < MIN_COLUMN_ROWS:
+        return True
+    return max(b - a for a, b in zip(rows, rows[1:], strict=False)) > height * MAX_ROW_JUMP
+
+
+def _too_small_for_columns(left: list[Word], right: list[Word]) -> bool:
+    """Two columns of two rows each are far more often a heading plus a right-aligned date than real columns."""
+    return max(len(_row_tops(left)[0]), len(_row_tops(right)[0])) < MIN_LONGEST_COLUMN
 
 
 def _lines(words: list[Word]) -> list[str]:
@@ -143,7 +175,7 @@ def _xy_cut(words: list[Word], page_height: float, depth: int = 0) -> list[str]:
     if _best_cut(words, "v", MIN_GUTTER_PT) and (cut := _header_cut(words, line_h)):
         top, bottom = _split_y(words, cut)
         return [*_xy_cut(top, page_height, depth + 1), "", *_xy_cut(bottom, page_height, depth + 1)]
-    if cut := _best_cut(words, "v", MIN_GUTTER_PT):
+    if cut := _best_cut(words, "v", MIN_GUTTER_PT, strict=True):
         left = [w for w in words if w.x1 <= cut]
         right = [w for w in words if w.x0 >= cut]
         if len(left) + len(right) == len(words):

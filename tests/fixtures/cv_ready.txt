@@ -1,0 +1,26 @@
+Priya Nair
+Senior Backend Engineer
+priya.nair@gmail.com | +91 98765 43210 | Bengaluru, India
+linkedin.com/in/priya-nair-demo | github.com/priya-demo
+
+SUMMARY
+Backend engineer with 7 years building payment and logistics APIs in Python and Go.
+
+EXPERIENCE
+Senior Backend Engineer - Finlytics Pvt Ltd (Mar 2021 - Present)
+- Designed a event-driven settlement service handling 2M transactions/day using Kafka and PostgreSQL.
+- Cut p95 API latency from 480ms to 190ms by introducing Redis caching.
+- Mentored 4 engineers; led migration from monolith to 6 services on Kubernetes.
+
+Software Engineer - ShipFast Logistics (Jul 2018 - Feb 2021)
+- Built real-time tracking APIs in Flask serving 50k requests/min.
+- Wrote CI/CD pipelines with GitHub Actions and Docker.
+
+EDUCATION
+B.Tech Computer Science, NIT Calicut, 2018 - CGPA 8.4
+
+SKILLS
+Python, Go, PostgreSQL, Redis, Kafka, Docker, Kubernetes, AWS, FastAPI, Flask
+
+CERTIFICATIONS
+AWS Certified Developer - Associate (2022)

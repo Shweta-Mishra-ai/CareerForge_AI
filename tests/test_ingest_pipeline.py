@@ -133,29 +133,27 @@ class TestRouting:
 
 
 class TestHeuristicFallback:
-    def test_only_contact_and_skills_nothing_guessed(self):
+    def test_without_section_headings_only_contact_and_skills_are_read_nothing_guessed(self):
         text = "Priya Nair\nSenior Engineer at Finlytics\nEmail: priya@example.com | +91 98765 43210\nlinkedin.com/in/priya-nair-demo github.com/priya-demo/repo\nPython, Go, 2018 - 2021"
         p, warnings = heuristic_profile(text)
-        assert p.name == "" and p.experience == [] and p.headline == ""
+        assert p.experience == [] and p.education == []  # no headings: no job is made up from a stray line
         assert (p.contact.email, p.contact.phone) == ("priya@example.com", "+91 98765 43210")
         assert (
             p.contact.linkedin.endswith("/in/priya-nair-demo") and p.contact.github == "https://github.com/priya-demo"
         )
-        assert {"Python", "Go"} <= set(p.skills) and "not configured" in warnings[0]
+        assert {"Python", "Go"} <= set(p.skills)
+        assert any("No standard section headings" in w for w in warnings) and "basic" in warnings[0]
 
     def test_year_ranges_are_not_phone_numbers(self):
         p, _ = heuristic_profile("Worked 2018 - 2021 and 2021 - 2024 at Acme Corp")
         assert p.contact.phone == ""
 
-    def test_no_ai_client_uses_it_and_labels_the_source(self):
+    def test_no_ai_client_uses_it_labels_the_source_and_grounds_the_result(self):
         res = ingest_upload(
             "cv.txt", b"Contact priya@example.com. Experienced in Python and Kubernetes for years.", None
         )
-        assert (
-            res.source == "heuristic"
-            and res.profile.contact.email == "priya@example.com"
-            and "not configured" in res.warnings[0]
-        )
+        assert res.source == "heuristic" and res.profile.contact.email == "priya@example.com"
+        assert "basic" in res.warnings[0] and res.grounding is not None and res.grounding.findings == ()
 
 
 def test_helpers():

@@ -8,6 +8,5 @@ httpx==0.28.1
 google-genai==2.29.0
 groq==1.7.0
 jinja2==3.1.6
+pandas==3.0.5
 weasyprint==70.0
-# LEGACY - only imported by core/ai_engine.py, which is replaced in Phase 6. The package is end-of-life.
-google-generativeai==0.8.6

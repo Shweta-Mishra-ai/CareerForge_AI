@@ -16,12 +16,6 @@ ignore = ["S101"]  # asserts are fine; tests use them
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "E501"]
-# LEGACY: rewritten in later phases (see docs/MERGE_PLAN.md). Scoped exemptions so the new
-# code is held to the full ruleset from day one. Delete each line when its file is replaced.
-"templates/cv_styles.py" = ["E501", "E701", "F841", "I001"]  # replaced in Phase 5
-"core/scraper.py" = ["E501", "S110", "S311", "I001"]         # replaced in Phase 3
-"core/ai_engine.py" = ["E501", "B904", "I001"]               # replaced in Phase 2
-"app.py" = ["E501", "I001"]                                   # replaced in Phase 6
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
