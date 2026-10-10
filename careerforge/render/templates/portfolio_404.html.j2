@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="{{ options.lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="color-scheme" content="{{ theme.color_scheme }}">
+<meta name="robots" content="noindex">
+<link rel="icon" href="{{ favicon }}">
+<title>Page not found - {{ p.name }}</title>
+<style>
+:root { --bg: {{ theme.bg }}; --text: {{ theme.text }}; --muted: {{ theme.muted }}; --accent: {{ theme.accent }}; --font: {{ theme.font }}; }
+{% if theme.dark %}
+@media (prefers-color-scheme: dark) { :root { --bg: {{ theme.dark.bg }}; --text: {{ theme.dark.text }}; --muted: {{ theme.dark.muted }}; --accent: {{ theme.dark.accent }}; } }
+{% endif %}
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; font-size: 1.0625rem; }
+main { width: min(100% - 2rem, 36rem); }
+h1 { font-size: 2rem; margin: 0 0 0.5rem; }
+p { color: var(--muted); margin: 0 0 1rem; }
+a { color: var(--accent); text-underline-offset: 0.2em; }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Page not found</h1>
+<p>There is nothing at this address.</p>
+<p><a href="{{ home }}">Go to {{ p.name }}'s portfolio</a></p>
+</main>
+</body>
+</html>

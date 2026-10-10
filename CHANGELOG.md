@@ -17,6 +17,33 @@ The audit findings and how each was resolved are in [docs/MERGE_PLAN.md](docs/ME
 * Streamlit multipage UI; mobile layout; keyboard and screen-reader support; no third-party requests.
 * Model discovery for the free Gemini and Groq tiers, with a `doctor` command.
 
+### Industry-standard upgrade: letter, outreach, job search, portfolio
+Written conventions, not guarantees: see [docs/STANDARDS.md](docs/STANDARDS.md) for each rule, its source and how
+sure we are. No tool can promise that a recruiter, hiring manager or ATS accepts a document.
+* **Cover letter**: a real one-page business letter (sender block, date in your country's style, recipient, `Re:` subject
+  with reference number, salutation, closing, enclosure) laid out by code. The body is written by AI or, with no AI,
+  built from your own bullets matched to the posting's requirements. A lint report (length, paragraphs, company and role
+  named, tailoring, a number, filler phrases, variety, next step, tone) and a real PDF page count. PDF, Word and text.
+* **HR outreach**: replies for the other moments of a search (referral request, recruiter reply, interview confirmation,
+  offer acknowledgement, withdrawing, reply to a rejection, message after a LinkedIn accept); an e-mail lint; the
+  `First_Last_CV.pdf` attachment name; a LinkedIn Boolean people-search string. Notes now stay under 200 characters.
+* **Job search**: company boards from a pasted Greenhouse or Lever careers-page link; RemoteOK and Arbeitnow feeds;
+  remote / seniority / employment normalised; filters; a multi-part score with a visible breakdown (skills 50%, role 20%,
+  seniority 10%, freshness 10%, location 10%); warnings for common job-scam patterns; saved searches and "new since
+  last search"; source, contact and next action on tracked applications.
+* **Portfolio**: automatic light/dark theme (both palettes contrast-checked), featured case-study cards and live-demo
+  links, an optional CV download button (PDF added to the zip), `robots.txt`, `sitemap.xml`, `404.html`, `CNAME`,
+  a no-index option, an inline icon, richer `schema.org` data. Lighthouse (local): Performance, Accessibility and Best
+  Practices 100; SEO 92, which is 100 once the page's own security policy is lifted for the audit (see STANDARDS.md).
+
+### Found while building it
+* Letter recipient names were validated with a pattern that rejected 60-character names its own length cap allowed.
+* The ATS matcher counts a project's tech list as "listed", not "applied", so projects without the skill in a bullet
+  were invisible to the cover-letter evidence step; evidence now also looks at a project's tech list.
+* Numbers typed into the letter form (a start date, a hook) were flagged as invented by the claims check.
+* No custom accent colour can be readable on both the light and the dark page, so the automatic theme refuses one.
+* The jobs page crashed the session if a provider returned an unsafe link; unsafe links are now skipped.
+
 ### Fixed (selected)
 * XSS in generated CV HTML (all user and model text is now escaped; previews carry a CSP).
 * The PDF reader merged columns; right-aligned dates and links no longer detach from their entries.

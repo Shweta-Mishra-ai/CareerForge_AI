@@ -293,6 +293,25 @@ class TestReview:
         pr = profile_of(at).projects[0]
         assert (pr.tech, pr.url, pr.stars) == (["Go", "Kafka"], "https://github.com/priya-demo/tool", 12)
 
+    def test_demo_link_and_featured_flag_are_editable_and_checked(self):
+        p = experienced().model_copy(update={"projects": [Project(name="Tool")]})
+        at = self.page(p, "Projects")
+        r = rev(at)
+        at.text_input(key=f"projects-0-demo_url-{r}").set_value("tool.example.com")
+        at.checkbox(key=f"projects-0-featured-{r}").set_value(True)
+        button(at, "Save projects").click()
+        at.run()
+        pr = profile_of(at).projects[0]
+        assert (pr.demo_url, pr.featured) == ("https://tool.example.com", True)
+
+    def test_a_javascript_demo_link_is_refused(self):
+        p = experienced().model_copy(update={"projects": [Project(name="Tool")]})
+        at = self.page(p, "Projects")
+        at.text_input(key=f"projects-0-demo_url-{rev(at)}").set_value("javascript:alert(1)")
+        button(at, "Save projects").click()
+        at.run()
+        assert any("Not saved" in e.value for e in at.error) and profile_of(at).projects[0].demo_url == ""
+
     def test_javascript_links_are_refused(self):
         p = experienced().model_copy(update={"projects": [Project(name="Tool")]})
         at = self.page(p, "Projects")

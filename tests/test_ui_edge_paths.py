@@ -101,7 +101,7 @@ class TestWriteEdges:
         ui_env.ai(client)
         at = page("write")
         set_job(at)
-        button(at, "Write my cover letter").click()
+        button(at, "Create my cover letter").click()
         at.run()
         assert "could not be reached" in at.error[0].value and "letter_draft" not in at.session_state
 

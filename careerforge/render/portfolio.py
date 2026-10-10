@@ -10,13 +10,16 @@ from __future__ import annotations
 import io
 import re
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
+from urllib.parse import quote
+from xml.sax.saxutils import escape as xml_escape
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from careerforge.ats.match import experience_months
 from careerforge.models import Profile
+from careerforge.outreach import attachment_name
 from careerforge.readiness import NotReady, Readiness, check
 from careerforge.render.cv import CSP, _env
 from careerforge.render.options import RenderOptions
@@ -24,6 +27,7 @@ from careerforge.render.themes import THEMES, with_accent
 from careerforge.render.view import build_blocks, contact_items, meta_description
 from careerforge.text import normalize_url
 
+_HOSTNAME = re.compile(r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}")
 PORTFOLIO_SECTIONS = ("about", "projects", "experience", "skills", "education", "certifications", "languages")
 _TITLES = {
     "about": "About",
@@ -48,6 +52,17 @@ class PortfolioOptions(BaseModel):
     show_stats: bool = True
     hidden: frozenset[str] = frozenset()
     lang: str = "en"
+    custom_domain: str = ""  # e.g. "jane.dev": writes the CNAME file GitHub Pages uses and sets the site address
+    noindex: bool = False  # ask search engines not to list the page (robots.txt and a meta tag)
+    include_cv: bool = False  # add the CV PDF to the download and link to it from the top of the page
+
+    @field_validator("custom_domain")
+    @classmethod
+    def _domain(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v and not _HOSTNAME.fullmatch(v):
+            raise ValueError("The custom domain must look like jane.dev (no https://, no path)")
+        return v
 
     @field_validator("theme")
     @classmethod
@@ -93,14 +108,21 @@ class Portfolio:
     html: str
     readme: str
     warnings: tuple[str, ...] = ()
+    extra: dict[str, str | bytes] = field(default_factory=dict)  # robots.txt, sitemap.xml, 404.html, CNAME, the CV
+
+    def files(self) -> dict[str, bytes]:
+        """Every file of the site, in a fixed order."""
+        base = {"index.html": self.html, "README.md": self.readme, ".nojekyll": ""}
+        merged = base | dict(sorted(self.extra.items()))
+        return {k: v.encode("utf-8") if isinstance(v, str) else v for k, v in merged.items()}
 
     def zip_bytes(self) -> bytes:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            for name, content in (("index.html", self.html), ("README.md", self.readme), (".nojekyll", "")):
+            for name, content in self.files().items():
                 info = zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0))  # fixed timestamp: identical input, identical zip
                 info.external_attr = 0o644 << 16
-                z.writestr(info, content.encode("utf-8"))
+                z.writestr(info, content)
         return buf.getvalue()
 
 
@@ -129,8 +151,76 @@ def _stats(p: Profile, today: date) -> list[Stat]:
     return stats
 
 
+def _favicon(name: str, theme) -> str:
+    """A data: URI for a round SVG icon with the person's initials (no image file, no request)."""
+    words = [w for w in re.split(r"\s+", name.strip()) if any(c.isalpha() for c in w)]
+    letters = [next(c for c in w if c.isalpha()).upper() for w in (words[:1] + words[-1:] if len(words) > 1 else words)]
+    initials = "".join(letters) or "•"
+    svg = (
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+        f"<circle cx='32' cy='32' r='32' fill='{theme.accent}'/>"
+        f"<text x='32' y='42' font-size='28' text-anchor='middle' font-family='sans-serif' font-weight='700' "
+        f"fill='{theme.accent_text}'>{initials}</text></svg>"
+    )
+    return "data:image/svg+xml," + quote(svg, safe="")
+
+
+def _structured_data(p: Profile, description: str, site_url: str, sameas: list[str]) -> dict:
+    person: dict = {"@context": "https://schema.org", "@type": "Person", "name": p.name}
+    if p.headline:
+        person["jobTitle"] = p.headline
+    if description:
+        person["description"] = description
+    if site_url:
+        person["url"] = site_url
+    if sameas:
+        person["sameAs"] = sameas
+    if p.skills:
+        person["knowsAbout"] = p.skills[:20]
+    current = next((e for e in p.experience if e.dates.current and e.company), None)
+    if current:  # only a role the person marked as current
+        person["worksFor"] = {"@type": "Organization", "name": current.company}
+    schools = list(dict.fromkeys(e.institution for e in p.education if e.institution))[:5]
+    if schools:
+        person["alumniOf"] = [{"@type": "EducationalOrganization", "name": n} for n in schools]
+    return person
+
+
+def _extra_files(
+    p: Profile, options: PortfolioOptions, site_url: str, theme, today: date, cv: bytes | None, cv_name: str
+) -> dict[str, str | bytes]:
+    extra: dict[str, str | bytes] = {}
+    if options.noindex:
+        extra["robots.txt"] = "User-agent: *\nDisallow: /\n"
+    else:
+        extra["robots.txt"] = "User-agent: *\nAllow: /\n" + (
+            f"\nSitemap: {site_url.rstrip('/')}/sitemap.xml\n" if site_url else ""
+        )
+        if site_url:
+            extra["sitemap.xml"] = (
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                f"  <url><loc>{xml_escape(site_url)}</loc><lastmod>{today.isoformat()}</lastmod></url>\n"
+                "</urlset>\n"
+            )
+    extra["404.html"] = (
+        _env()
+        .get_template("portfolio_404.html.j2")
+        .render(p=p, theme=theme, options=options, csp=CSP, home=site_url or "/", favicon=_favicon(p.name, theme))
+    )
+    if options.custom_domain:
+        extra["CNAME"] = options.custom_domain + "\n"
+    if cv is not None:
+        extra[cv_name] = cv
+    return extra
+
+
 def build_portfolio(
-    profile: Profile, options: PortfolioOptions | None = None, *, today: date | None = None
+    profile: Profile,
+    options: PortfolioOptions | None = None,
+    *,
+    today: date | None = None,
+    cv_pdf: bytes | None = None,
 ) -> Portfolio:
     options = options or PortfolioOptions()
     today = today or date.today()
@@ -141,6 +231,11 @@ def build_portfolio(
     theme = THEMES[options.theme]
     if options.accent:
         theme = with_accent(theme, options.accent)
+
+    site_url = options.site_url or (f"https://{options.custom_domain}/" if options.custom_domain else "")
+    options = options.model_copy(update={"site_url": site_url})
+    cv_name = attachment_name(p, "CV", "pdf")
+    cv_link = cv_name if options.include_cv and cv_pdf else ""
 
     shown = [s for s in PORTFOLIO_SECTIONS if s not in options.hidden]
     blocks = {b.name: b for b in build_blocks(p, RenderOptions())}
@@ -170,23 +265,39 @@ def build_portfolio(
             contact=contact,
             stats=_stats(p, today) if options.show_stats else [],
             sameas=sameas,
+            person=_structured_data(p, description, site_url, sameas),
+            favicon=_favicon(p.name, theme),
+            cv_link=cv_link,
+            featured=[pr for pr in p.projects if pr.featured],
+            others=[pr for pr in p.projects if not pr.featured],
             today=today.isoformat(),
         )
     )
     warnings = []
+    if options.include_cv and not cv_pdf:
+        warnings.append("The CV PDF could not be made, so the page has no CV download link")
+    if (
+        options.custom_domain
+        and options.site_url
+        and not options.site_url.startswith(f"https://{options.custom_domain}")
+    ):
+        warnings.append(f"The site address and the custom domain ({options.custom_domain}) are different")
     if not p.summary and "about" not in options.hidden:
         warnings.append("There is no summary, so the About section is left out. Add one in your profile if you want it")
     if not p.projects and not p.experience:
         warnings.append("A portfolio with no projects or experience looks empty; add your best project")
-    return Portfolio(html, _readme(p, options), tuple(warnings))
+    extra = _extra_files(p, options, site_url, theme, today, cv_pdf if cv_link else None, cv_name)
+    return Portfolio(html, _readme(p, options, cv_link), tuple(warnings), extra)
 
 
-def _readme(p: Profile, options: PortfolioOptions) -> str:
+def _readme(p: Profile, options: PortfolioOptions, cv_link: str = "") -> str:
     user = p.contact.github.rstrip("/").rsplit("/", 1)[-1] if p.contact.github else "your-username"
     shown = ["the links, projects and experience from your profile"]
     shown.append("your email address" if options.show_email else "no email address")
     if options.show_phone:
         shown.append("your phone number")
+    if cv_link:
+        shown.append(f"a link to your CV (`{cv_link}`, which is also in this folder)")
     lines = [
         f"# {p.name} - portfolio website",
         "",
@@ -203,7 +314,7 @@ def _readme(p: Profile, options: PortfolioOptions) -> str:
         "",
         "**GitHub Pages**",
         f"1. Create a public repository. For a site at `https://{user}.github.io`, name it exactly `{user}.github.io`.",
-        "2. Upload `index.html` and `.nojekyll` to the repository root.",
+        "2. Upload every file in this folder to the repository root (at least `index.html` and `.nojekyll`).",
         "3. In the repository's Settings, open Pages and publish from the main branch (root folder).",
         "",
         "**Netlify Drop**: drag this unzipped folder onto the drop area at app.netlify.com/drop.",
@@ -217,6 +328,25 @@ def _readme(p: Profile, options: PortfolioOptions) -> str:
         "## Updating",
         "",
         "Change your profile in CareerForge, generate the portfolio again and upload the new `index.html`.",
+    ]
+    lines += [
+        "",
+        "## What else is in this folder",
+        "",
+        "* `robots.txt`: "
+        + ("asks search engines NOT to list the page." if options.noindex else "lets search engines list the page."),
+        "* `404.html`: the page shown for a wrong address (GitHub Pages and Netlify use it automatically).",
+    ]
+    if not options.noindex and options.site_url:
+        lines.append("* `sitemap.xml`: tells search engines the address of the page.")
+    if options.custom_domain:
+        lines += [
+            f"* `CNAME`: tells GitHub Pages to serve the site at {options.custom_domain}. You still have to point the",
+            "  domain's DNS at GitHub Pages in your domain provider's settings (see GitHub's custom-domain guide).",
+        ]
+    lines += [
+        "",
+        "The page has no preview image, so links shared on social media show text only.",
     ]
     if options.site_url:
         lines += ["", f"The site address is set to {options.site_url} (used for the canonical link)."]

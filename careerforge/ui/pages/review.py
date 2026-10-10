@@ -45,7 +45,9 @@ EDUCATION = (
 )
 PROJECTS = (
     Field(("name",), "Project name"),
-    Field(("url",), "Link (https://...)"),
+    Field(("url",), "Link to the code or page (https://...)"),
+    Field(("demo_url",), "Live demo link (https://...)"),
+    Field(("featured",), "Show as a featured case study on my portfolio", "bool"),
     Field(("description",), "Description", "area"),
     Field(("tech",), "Technologies (comma separated)", "csv"),
     Field(("bullets",), "What you built or achieved (one per line)", "lines"),

@@ -5,7 +5,9 @@ wrong and sending mail to strangers' guessed inboxes is poor practice; use the s
 and reach out through LinkedIn or an address the company publishes.
 
 Drafts are deterministic and contain NO placeholders: optional details (`hook`, `interview_topic`) are simply left out
-when the user does not provide them.
+when the user does not provide them. Every draft can be checked with `lint_email` against widely repeated cold-email
+conventions (short subject, short body, one clear ask). Those limits are conventions from career-advice sources, not
+measured results; the report says so.
 """
 
 from __future__ import annotations
@@ -21,7 +23,10 @@ from careerforge.models import Profile
 from careerforge.text import clean_text
 
 SEARCH_TITLES = ("Technical Recruiter", "Talent Acquisition", "Hiring Manager", "Engineering Manager")
-NOTE_LIMIT = 300  # LinkedIn connection notes are capped at 300 characters
+NOTE_LIMIT = (
+    200  # connection notes: LinkedIn has capped these at 200-300 characters over time; stay under the lower one
+)
+NOTE_KINDS = frozenset({"linkedin_note", "linkedin_accepted"})  # short messages: no subject, no signature block
 
 
 @dataclass(frozen=True)
@@ -92,6 +97,183 @@ def _sentences(*parts: str) -> str:
     return " ".join(x for x in parts if x)
 
 
+SUBJECT_MAX = 60  # mobile inboxes cut longer subjects; a widely repeated rule of thumb, not a measured limit
+BODY_WORDS_MAX = {"cold_email": 150, "follow_up_1": 100, "follow_up_2": 80, "referral_request": 150}
+DEFAULT_BODY_WORDS_MAX = 150
+_ASK = re.compile(
+    r"\b(would you|could you|can you|please (?:let|send|share|confirm)|i(?:'d| would) (?:welcome|value|appreciate)"
+    r"|would be glad|would love)\b",
+    re.I,
+)
+_PLACEHOLDER = re.compile(r"\[[^\]]*\]|\{[^}]*\}|<[A-Za-z/][^>]*>|\bTODO\b|\bXXX\b|lorem ipsum", re.I)
+
+
+@dataclass(frozen=True)
+class EmailCheck:
+    key: str
+    label: str
+    passed: bool
+    detail: str = ""
+
+
+def attachment_name(profile: Profile, kind: str = "CV", ext: str = "pdf") -> str:
+    """`First_Last_CV.pdf`: the file name a recruiter sees in their inbox. Falls back to `CV.pdf` for names with no
+    Latin letters (the file name is for people, so it is never left empty or made of path characters)."""
+    stem = re.sub(r"[^A-Za-z0-9]+", "_", profile.name or "").strip("_")[:50]
+    kind = re.sub(r"[^A-Za-z0-9]+", "_", kind).strip("_") or "CV"
+    ext = re.sub(r"[^a-z0-9]", "", ext.lower()) or "pdf"
+    return f"{stem}_{kind}.{ext}" if stem else f"{kind}.{ext}"
+
+
+def lint_email(mail: Email, kind: str = "cold_email") -> list[EmailCheck]:
+    """Checks against common outreach advice. `kind` picks the length limit (follow-ups are shorter)."""
+    words = len(mail.body.split())
+    limit = BODY_WORDS_MAX.get(kind, DEFAULT_BODY_WORDS_MAX)
+    out: list[EmailCheck] = []
+    if kind not in NOTE_KINDS:
+        out.append(
+            EmailCheck(
+                "subject",
+                f"Subject is {SUBJECT_MAX} characters or fewer",
+                0 < len(mail.subject) <= SUBJECT_MAX,
+                f"{len(mail.subject)} characters.",
+            )
+        )
+    out.append(EmailCheck("length", f"Body is {limit} words or fewer", words <= limit, f"{words} words."))
+    asks = len(_ASK.findall(mail.body)) + mail.body.count("?")
+    out.append(EmailCheck("one_ask", "Makes one clear request", asks <= 2, f"{asks} request-like phrase(s)."))
+    out.append(
+        EmailCheck(
+            "no_placeholders",
+            "No placeholders left",
+            not _PLACEHOLDER.search(mail.subject + mail.body),
+            "Fill brackets.",
+        )
+    )
+    if kind not in NOTE_KINDS:
+        out.append(
+            EmailCheck(
+                "signature",
+                "Signed with a way to reach you",
+                bool(re.search(r"@|\+?\d[\d\s().-]{6,}", mail.body.rsplit("\n\n", 1)[-1])),
+                "Add your email or phone under your name.",
+            )
+        )
+    return out
+
+
+def linkedin_boolean(company: str, titles: tuple[str, ...] = SEARCH_TITLES, *, keywords: str = "") -> str:
+    """A Boolean people-search string: ("Technical Recruiter" OR "Talent Acquisition") AND "Company" [AND "extra"].
+    LinkedIn documents quotes, AND/OR/NOT (upper case) and brackets in its search; this tool has not run it live."""
+    name = clean_text(company)[:80].replace('"', "")
+    if not name:
+        return ""
+    ors = " OR ".join(f'"{t}"' for t in titles)
+    extra = clean_text(keywords)[:60].replace('"', "")
+    return f'({ors}) AND "{name}"' + (f' AND "{extra}"' if extra else "")
+
+
+@dataclass(frozen=True)
+class Moment:
+    """Facts only the user knows. Anything left empty is simply omitted from a draft, never invented."""
+
+    contact: str = ""  # a person to refer you / the recruiter who wrote to you
+    how_known: str = ""  # "we worked together on the payments team"
+    when: str = ""  # "Tuesday 14 October, 3 pm IST"
+    availability: str = ""  # "I can speak any weekday after 4 pm"
+    deadline: str = ""  # "Friday 17 October"
+    notice: str = ""  # "My notice period is 30 days"
+    reason: str = ""  # the user's own reason for declining
+
+
+def build_moment_emails(
+    profile: Profile, company: str, role: str, moment: Moment | None = None, *, report: AtsReport | None = None
+) -> dict[str, Email]:
+    """Replies for the other moments of a job search. Each uses only the CV and what the user typed."""
+    p = profile.exportable()
+    m = moment or Moment()
+    company, role = clean_text(company)[:80], clean_text(role)[:100]
+    who = clean_text(m.contact)
+    name, c = p.name, p.contact
+    sign = "\n".join(x for x in (name, c.email, c.phone, c.linkedin) if x)
+    about = f"the {role} role at {company}" if role else f"a role at {company}"
+    greeting = f"Hello {who}," if who else "Hello,"
+    achievement = best_achievement(p, report)
+    c_ = lambda x: clean_text(x)  # noqa: E731
+    tag = f": {role}" if role else ""
+
+    referral = _letter(
+        greeting,
+        _sentences(
+            c_(m.how_known).rstrip(".") + "." if m.how_known else "",
+            f"I'm applying for {about} and saw that you work at {company}.",
+        ),
+        _sentences(_as_clause(achievement), "I've attached my CV."),
+        "Would you be open to referring me, or pointing me to the right person? No problem at all if not.",
+        f"Thank you,\n{sign}",
+    )
+    reply = _letter(
+        greeting,
+        f"Thank you for reaching out about {about}. I'm interested and would like to learn more.",
+        _sentences(
+            c_(m.availability).rstrip(".") + "." if m.availability else "",
+            c_(m.notice).rstrip(".") + "." if m.notice else "",
+        ),
+        "My CV is attached. Please let me know the next step.",
+        f"Best regards,\n{sign}",
+    )
+    confirm = _letter(
+        greeting,
+        _sentences(
+            "Thank you for the invitation.",
+            f"I confirm our interview for {about}" + (f" on {c_(m.when)}." if m.when else "."),
+        ),
+        "Please tell me if I should prepare or bring anything.",
+        f"Best regards,\n{sign}",
+    )
+    offer = _letter(
+        greeting,
+        f"Thank you for offering me {about}. I'm delighted and appreciate the time the team invested.",
+        _sentences(
+            "Could you send the offer details in writing?",
+            f"I will reply by {c_(m.deadline)}." if m.deadline else "",
+        ),
+        f"Best regards,\n{sign}",
+    )
+    decline = _letter(
+        greeting,
+        f"Thank you for considering me for {about} and for your time.",
+        _sentences(
+            "After careful thought, I have decided not to continue.",
+            c_(m.reason).rstrip(".") + "." if m.reason else "",
+        ),
+        "I would be glad to stay in touch.",
+        f"Kind regards,\n{sign}",
+    )
+    rejected = _letter(
+        greeting,
+        f"Thank you for letting me know about {about}, and for the time you spent on my application.",
+        "If it is possible, I would value one or two lines of feedback. "
+        "I would also like to be considered for future openings.",
+        f"Best regards,\n{sign}",
+    )
+    accepted = _letter(
+        f"Hi {who}," if who else "Hi,",
+        f"Thanks for connecting. I'm interested in {about}.",
+        "Would you be open to a short chat about what the team looks for?",
+        name,
+    )
+    return {
+        "referral_request": Email(f"Referral request{tag}"[:SUBJECT_MAX], referral),
+        "recruiter_reply": Email(f"Re: {role or 'Your message'} - {name}"[:SUBJECT_MAX], reply),
+        "interview_confirmation": Email(f"Interview confirmation{tag} - {name}"[:SUBJECT_MAX], confirm),
+        "offer_acknowledgement": Email(f"Thank you for the offer{tag}"[:SUBJECT_MAX], offer),
+        "decline": Email(f"Withdrawing my application{tag}"[:SUBJECT_MAX], decline),
+        "after_rejection": Email(f"Thank you{tag}"[:SUBJECT_MAX], rejected),
+        "linkedin_accepted": Email("", accepted[:NOTE_LIMIT]),
+    }
+
+
 def build_emails(
     profile: Profile,
     company: str,
@@ -160,9 +342,9 @@ def build_emails(
     )
     tag = f": {role}" if role else ""
     return {
-        "cold_email": Email((f"{role} application - {name}" if role else f"Introduction - {name}")[:70], cold),
-        "follow_up_1": Email(f"Following up{tag} - {name}"[:70], follow1),
-        "follow_up_2": Email(f"Final follow-up{tag} - {name}"[:70], follow2),
-        "thank_you": Email(f"Thank you{tag}"[:70], thanks),
+        "cold_email": Email((f"{role} application - {name}" if role else f"Introduction - {name}")[:SUBJECT_MAX], cold),
+        "follow_up_1": Email(f"Following up{tag} - {name}"[:SUBJECT_MAX], follow1),
+        "follow_up_2": Email(f"Final follow-up{tag} - {name}"[:SUBJECT_MAX], follow2),
+        "thank_you": Email(f"Thank you{tag}"[:SUBJECT_MAX], thanks),
         "linkedin_note": Email("", note[:NOTE_LIMIT]),
     }

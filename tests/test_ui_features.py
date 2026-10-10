@@ -247,10 +247,19 @@ class TestWrite:
         at.text_input(key="role-input").set_value("Backend Engineer").run()
         assert not at.exception
         codes = [c.value for c in at.code]
-        assert len(codes) == 5 and all("Priya Nair" in c or len(c) < 300 for c in codes)
+        # 5 apply-and-follow-up drafts, 7 replies for other moments, 1 Boolean search string
+        assert len(codes) == 13 and all("Priya Nair" in c or len(c) < 300 for c in codes)
         assert not any("@northwind" in c or "hr@" in c for c in codes)
-        assert "[" not in "".join(codes)  # no placeholders
+        assert "[" not in "".join(codes[:12])  # no placeholders in any draft
         assert len(at.get("link_button")) == 4  # LinkedIn people searches
+        assert codes[-1].startswith('("Technical Recruiter" OR') and codes[-1].endswith('AND "Northwind Payments"')
+
+    def test_outreach_drafts_show_their_own_checks_and_the_attachment_name(self):
+        at = page("write")
+        at.radio(key="write-view").set_value("Outreach emails").run()
+        at.text_input(key="company-input").set_value("Northwind Payments").run()
+        body = texts(at)
+        assert "priya_nair_cv.pdf" in body and "short, one request, signed, no placeholders" in body
 
     def test_outreach_options_flow_into_the_drafts(self):
         at = page("write")
@@ -261,11 +270,85 @@ class TestWrite:
         joined = "\n".join(c.value for c in at.code)
         assert "Ms. Rao" in joined and "your event-driven design" in joined
 
-    def test_cover_letter_needs_ai_and_a_posting(self, ui_env):
+    def test_moment_replies_use_only_what_the_user_typed(self):
+        at = page("write")
+        at.radio(key="write-view").set_value("Outreach emails").run()
+        at.text_input(key="company-input").set_value("Northwind").run()
+        at.text_input(key="mo-when").set_value("Tuesday 14 October, 3 pm IST").run()
+        at.text_input(key="mo-reason").set_value("I accepted another offer").run()
+        joined = "\n".join(c.value for c in at.code)
+        assert "Tuesday 14 October, 3 pm IST" in joined and "I accepted another offer" in joined
+        assert "boolean search" in texts(at)
+
+    def test_boolean_search_takes_extra_keywords(self):
+        at = page("write")
+        at.radio(key="write-view").set_value("Outreach emails").run()
+        at.text_input(key="company-input").set_value("Northwind").run()
+        at.text_input(key="bool-extra").set_value("Pune").run()
+        assert at.code[-1].value.endswith('AND "Northwind" AND "Pune"')
+
+    def test_basic_cover_letter_needs_no_ai(self):
         at = page("write")
         assert "paste a job posting" in texts(at)
         set_job(at)
-        assert "need ai" in texts(at)
+        assert at.radio(key="lt-mode").value.startswith("Basic")  # no AI key: the no-AI mode is the default
+        button(at, "Create my cover letter").click()
+        at.run()
+        assert not at.exception
+        draft = at.session_state["letter_draft"]
+        assert draft.letter.salutation == "Dear Hiring Manager," and draft.verified
+        assert "Priya Nair" in draft.text and "Enclosure: Curriculum Vitae" in draft.text
+
+    def test_choosing_ai_without_a_key_says_so_and_disables_the_button(self):
+        at = set_job(page("write"))
+        at.radio(key="lt-mode").set_value("AI-written (checked against your CV)").run()
+        assert "ai is not set up" in texts(at) and button(at, "Create my cover letter").disabled
+
+    def test_letter_details_shape_the_business_letter(self):
+        at = set_job(page("write"))
+        at.text_input(key="company-input").set_value("Northwind Payments").run()
+        at.text_input(key="lt-name").set_value("Ms. Rao").run()
+        at.text_input(key="lt-title").set_value("Head of Engineering").run()
+        at.text_input(key="lt-city").set_value("Pune").run()
+        at.text_input(key="lt-ref").set_value("ENG-2041").run()
+        at.text_input(key="lt-source").set_value("LinkedIn").run()
+        at.text_input(key="lt-avail").set_value("I can start on 1 November").run()
+        at.selectbox(key="lt-date").set_value("UK: 10 October 2026").run()
+        button(at, "Create my cover letter").click()
+        at.run()
+        assert not at.exception
+        text = at.session_state["letter_draft"].text
+        assert "Dear Ms. Rao," in text and "Yours sincerely," in text and "(Ref: ENG-2041)" in text
+        assert "Head of Engineering" in text and "Pune" in text and "through LinkedIn" in text
+        assert "I can start on 1 November." in text
+
+    def test_a_bad_recipient_name_is_a_message_not_a_crash(self):
+        at = set_job(page("write"))
+        at.text_input(key="lt-name").set_value("<script>alert(1)</script>").run()
+        button(at, "Create my cover letter").click()
+        at.run()
+        assert not at.exception and at.error and "letter_draft" not in at.session_state
+
+    def test_the_lint_report_and_downloads_follow_the_edited_body(self):
+        at = set_job(page("write"))
+        button(at, "Create my cover letter").click()
+        at.run()
+        assert "What was checked" in [e.label for e in at.expander]
+        labels = {b.label for b in at.get("download_button")}
+        assert {"PDF", "Word (.docx)", "Text"} <= labels
+        area = next(a for a in at.text_area if a.label.startswith("Letter body"))
+        area.set_value("Too short.\n\nVery short.").run()
+        assert not at.exception and "suggestion(s) to improve this letter" in texts(at)
+        assert "words" in texts(at)
+
+    def test_a_letter_with_placeholders_cannot_be_downloaded(self):
+        at = set_job(page("write"))
+        button(at, "Create my cover letter").click()
+        at.run()
+        area = next(a for a in at.text_area if a.label.startswith("Letter body"))
+        area.set_value("At [Company] I did x.\n\nSecond.\n\nThird.").run()
+        assert not at.exception and any("placeholder" in e.value for e in at.error)
+        assert not [b for b in at.get("download_button") if b.label == "PDF"]
 
     def test_cover_letter_verified(self, ui_env):
         client, _ = scripted_client({"paragraphs": GOOD_PARAS})
@@ -273,22 +356,26 @@ class TestWrite:
         at = page("write")
         set_job(at)
         at.text_input(key="company-input").set_value("Northwind Payments").run()
-        button(at, "Write my cover letter").click()
+        assert at.radio(key="lt-mode").value.startswith("AI")
+        button(at, "Create my cover letter").click()
         at.run()
         assert not at.exception and "Checked: every number" in " ".join(s.value for s in at.success)
-        letter = at.text_area[-1].value
-        assert letter.startswith(date.today().strftime("%B")) or "Dear Hiring Manager," in letter
-        assert letter.rstrip().endswith("+91 98765 43210")
+        body = next(a for a in at.text_area if a.label.startswith("Letter body")).value
+        assert body.split("\n\n")[0] == GOOD_PARAS[0]
+        draft = at.session_state["letter_draft"]
+        assert draft.text.startswith("Priya Nair") and draft.text.rstrip().endswith("Enclosure: Curriculum Vitae")
+        assert "+91 98765 43210" in draft.text.split("\n\n")[0]
 
     def test_cover_letter_with_invented_claims_is_flagged_not_called_ready(self, ui_env):
-        bad = [GOOD_PARAS[0], GOOD_PARAS[1] + " I also led 40 engineers at Google.", GOOD_PARAS[2]]
+        bad = [GOOD_PARAS[0], GOOD_PARAS[1] + " I also led 40 engineers at Google.", GOOD_PARAS[2], GOOD_PARAS[3]]
         client, _ = scripted_client({"paragraphs": bad}, {"paragraphs": bad})
         ui_env.ai(client)
         at = page("write")
         set_job(at)
-        button(at, "Write my cover letter").click()
+        button(at, "Create my cover letter").click()
         at.run()
-        assert any("Not fully verified" in w.value for w in at.warning) and not at.success
+        assert any("Not fully verified" in w.value for w in at.warning)
+        assert not any("Checked: every number" in s.value for s in at.success)
         assert "google" in texts(at)  # the issue names what is wrong
 
     def test_interview_gap_questions_work_without_ai(self):

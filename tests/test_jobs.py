@@ -2,6 +2,7 @@
 
 import json
 import threading
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -18,6 +19,8 @@ from careerforge.jobs import (
     suggest_queries,
 )
 from careerforge.models import Profile
+
+TODAY = date(2026, 10, 10)
 
 
 class Api:
@@ -115,7 +118,9 @@ class TestProviders:
             with pytest.raises(ValueError):
                 AdzunaProvider(*args)
 
-    @pytest.mark.parametrize("status,msg", [(429, "rate-limiting"), (403, "API key"), (500, "error"), (404, "error")])
+    @pytest.mark.parametrize(
+        "status,msg", [(429, "rate-limiting"), (403, "API key"), (500, "error"), (404, "not found")]
+    )
     def test_http_errors_become_provider_errors(self, api, status, msg):
         a = api({"/api/remote-jobs": (status, {})})
         with pytest.raises(ProviderError, match=msg):
@@ -208,22 +213,25 @@ class TestRanking:
     def test_min_score_filters(self):
         assert [r.job.company for r in rank_jobs(self.P, [self.BAD, self.GOOD], min_score=50)] == ["A"]
 
-    def test_same_engine_as_the_ats_report(self):
+    def test_skills_part_is_the_ats_keyword_score(self):
         from datetime import date
 
         from careerforge.ats.report import analyze
 
         text = f"{self.GOOD.title}\n{self.GOOD.description}"
         kw = analyze(self.P, text, today=date(2026, 10, 10)).component("keywords").score
-        assert abs(rank_jobs(self.P, [self.GOOD])[0].score - round(0.7 * kw + 0.3 * 100)) <= 3
+        skills = next(x for x in rank_jobs(self.P, [self.GOOD])[0].parts if x.key == "skills")
+        assert skills.score == kw
 
     def test_score_is_renormalised_when_the_job_title_gives_no_role_signal(self):
-        titleless = job(
-            "Senior", "T", desc="Requirements: Python"
-        )  # only a seniority word: role alignment is unavailable
+        titleless = job("Senior", "T", desc="Requirements: Python")  # a seniority word only: no role signal
         with_title = job("Backend Engineer", "T", desc="Requirements: Python")
-        assert rank_jobs(self.P, [titleless])[0].score == 70  # Python only in Skills = 70% evidence, NOT 0.7 * 70 = 49
-        assert rank_jobs(self.P, [with_title])[0].score > 70  # 0.7 * 70 + 0.3 * 100 = 79
+        r = rank_jobs(self.P, [titleless], today=TODAY)[0]
+        role = next(x for x in r.parts if x.key == "role")
+        usable = [x for x in r.parts if x.score is not None]
+        assert role.score is None
+        assert r.score == round(sum(x.weight * x.score for x in usable) / sum(x.weight for x in usable))
+        assert rank_jobs(self.P, [with_title], today=TODAY)[0].score > 0
 
     def test_jobs_with_no_extractable_requirements_get_a_finite_score(self):
         r = rank_jobs(self.P, [job("Cook", "C", desc="Come and enjoy our kitchen.")])

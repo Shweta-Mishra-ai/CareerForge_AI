@@ -19,7 +19,8 @@ def unsupported_claims(
     issues: list[str] = []
     if _PLACEHOLDER.search(text):
         issues.append("contains placeholder or markup text that must be replaced")
-    allowed = _numbers(profile_text) | {str(y) for y in (years - 1, years, years + 1) if y > 0}
+    # extra_known is text the user typed into the form themselves (a hook, a start date): its numbers are theirs too
+    allowed = _numbers(profile_text) | _numbers(extra_known) | {str(y) for y in (years - 1, years, years + 1) if y > 0}
     if extra := sorted(_numbers(text) - allowed):
         issues.append(f"mentions number(s) not in your CV: {', '.join(extra)}")
     known = f"{profile_text}\n{posting_text}\n{extra_known}"

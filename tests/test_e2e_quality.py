@@ -67,7 +67,7 @@ class TestHostileContent:
         page.wait_for_timeout(2000)
         assert not pwned(page)
         s.go("Letters & interviews")
-        page.get_by_label("Company").fill(PAYLOAD)
+        page.get_by_label("Company", exact=True).fill(PAYLOAD)
         s.choose("Outreach emails")
         page.wait_for_timeout(800)
         assert not pwned(page) and not s.dialogs
@@ -257,6 +257,104 @@ class TestAccessibility:
         found = results.response["violations"]
         page.close()
         assert not found, describe(found)
+
+    def test_the_automatic_portfolio_is_accessible_in_dark_mode_too(self, browser, tmp_path):
+        f = tmp_path / "index.html"
+        f.write_text(build(full_profile(), theme="auto"), encoding="utf-8")
+        page = browser.new_page(color_scheme="dark")
+        page.goto(f.as_uri())
+        assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(15, 23, 42)"  # really dark
+        results = Axe().run(
+            page, options={"runOnly": {"type": "tag", "values": ["wcag2a", "wcag2aa", "best-practice"]}}
+        )
+        found = results.response["violations"]
+        page.close()
+        assert not found, describe(found)
+
+    @pytest.mark.parametrize("scheme", ["light", "dark"])
+    def test_portfolio_with_case_studies_cv_button_and_404_page_are_accessible(self, browser, tmp_path, scheme):
+        from datetime import date
+
+        from test_portfolio_v2 import PDF
+
+        from careerforge.models import Project
+        from careerforge.render.portfolio import PortfolioOptions, build_portfolio
+
+        p = full_profile()
+        p = p.model_copy(update={"projects": [Project(name="Big One", description="Flagship.", bullets=["Cut costs by 30%"], tech=["Go"], url="https://github.com/priya-demo/big", demo_url="https://big.example.com", featured=True), *p.projects]})  # fmt: skip
+        built = build_portfolio(
+            p,
+            PortfolioOptions(theme="auto", include_cv=True, custom_domain="jane.dev"),
+            today=date(2026, 10, 10),
+            cv_pdf=PDF,
+        )
+        for name in ("index.html", "404.html"):
+            f = tmp_path / name
+            f.write_bytes(built.files()[name])
+            page = browser.new_page(color_scheme=scheme)
+            page.goto(f.as_uri())
+            results = Axe().run(
+                page, options={"runOnly": {"type": "tag", "values": ["wcag2a", "wcag2aa", "best-practice"]}}
+            )
+            found = [v for v in results.response["violations"] if not (name == "404.html" and v["id"] == "region")]
+            page.close()
+            assert not found, f"{name} ({scheme}): {describe(found)}"
+
+    def test_the_cover_letter_html_is_accessible(self, browser, tmp_path):
+        from datetime import date
+
+        from test_letter import FULL, JD, P
+
+        from careerforge.render.letter import render_letter_html
+        from careerforge.writing.basic_letter import build_basic_letter
+
+        letter = build_basic_letter(P, JD, details=FULL, today=date(2026, 10, 10)).letter
+        f = tmp_path / "letter.html"
+        f.write_text(render_letter_html(letter), encoding="utf-8")
+        page = browser.new_page()
+        page.goto(f.as_uri())
+        results = Axe().run(page, options={"runOnly": {"type": "tag", "values": ["wcag2a", "wcag2aa"]}})
+        found = [v for v in results.response["violations"] if v["id"] != "region"]  # a letter has no site landmarks
+        page.close()
+        assert not found, describe(found)
+
+    def test_letters_page_with_a_letter_lint_and_outreach_tabs(self, session):
+        s, page = session, session.page
+        s.load_cv()
+        s.go("Letters & interviews")
+        s.paste_job()
+        s.click("Create my cover letter")
+        expect(page.get_by_text("What was checked")).to_be_visible(timeout=30000)
+        found = violations(page)
+        assert not found, f"letter: {describe(found)}"
+        s.choose("Outreach emails")
+        company = page.get_by_label("Company", exact=True)
+        company.fill("Northwind Payments")
+        company.blur()
+        for tab, marker in (
+            ("Apply and follow up", "Cold email to a recruiter or hiring manager"),
+            ("Replies for other moments", "Reply to a recruiter who contacted you"),
+            ("Find the right people", "Boolean search"),
+        ):
+            page.get_by_role("tab", name=tab).click()
+            expect(page.get_by_text(marker).first).to_be_visible(timeout=30000)
+            found = violations(page)
+            assert not found, f"outreach ({tab}): {describe(found)}"
+
+    def test_jobs_page_with_filters_and_tracker_details(self, session):
+        s, page = session, session.page
+        s.load_cv()
+        s.go("Jobs & tracker")
+        expect(page.get_by_role("textbox", name=re.compile("Company careers pages"))).to_be_visible()
+        found = violations(page)
+        assert not found, f"jobs: {describe(found)}"
+        s.choose("Application tracker")
+        page.get_by_label("Company", exact=True).fill("Acme")
+        page.get_by_label("Role", exact=True).fill("Engineer")
+        s.click("Add application")
+        expect(page.get_by_text("Next action and contact")).to_be_visible()
+        found = violations(page)
+        assert not found, f"tracker: {describe(found)}"
 
     def test_generated_cv_html_has_no_wcag_violations(self, browser, tmp_path):
         from test_render_cv import experienced

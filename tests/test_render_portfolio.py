@@ -110,7 +110,10 @@ class TestSelfContained:
         html = build(theme=theme)
         s = soup(html)
         assert [t.get("type") for t in s.find_all("script")] == ["application/ld+json"]
-        assert not s.find(["link", "img", "iframe", "object", "embed", "form", "input", "base"])
+        assert not s.find(["img", "iframe", "object", "embed", "form", "input", "base"])
+        # the only <link> is the inline icon (a data: URI: no request is made)
+        links = s.find_all("link")
+        assert [link["rel"] for link in links] == [["icon"]] and links[0]["href"].startswith("data:image/svg+xml,")
         assert not [t.name for t in s.find_all(True) if any(a.lower().startswith("on") for a in t.attrs)]
         css = s.find("style").string
         assert "@import" not in css and "url(" not in css and "@font-face" not in css
@@ -171,7 +174,8 @@ def test_full_markup_is_inert_even_if_the_gate_were_bypassed(theme, payload, mon
     html = build(hostile(payload), theme=theme)
     s = soup(html)
     assert [t.get("type") for t in s.find_all("script")] == ["application/ld+json"]
-    assert not s.find(["img", "iframe", "svg", "object", "link", "base"])
+    assert not s.find(["img", "iframe", "svg", "object", "base"])
+    assert [link["rel"] for link in s.find_all("link")] == [["icon"]] and s.find("link")["href"].startswith("data:")
     assert not [t.name for t in s.find_all(True) if any(a.lower().startswith("on") for a in t.attrs)]
     assert payload in s.find("main").get_text()
 
@@ -333,9 +337,14 @@ class TestPrivacy:
 
     def test_json_ld_only_contains_published_facts(self):
         data = json.loads(soup(build()).find("script").string)
-        assert set(data) == {"@context", "@type", "name", "jobTitle", "description", "sameAs"}
+        assert set(data) == {
+            "@context", "@type", "name", "jobTitle", "description", "sameAs", "knowsAbout", "worksFor", "alumniOf",
+        }  # fmt: skip
         assert "email" not in data and "telephone" not in data
         assert data["sameAs"] == ["https://linkedin.com/in/priya-nair-demo", "https://github.com/priya-demo"]
+        assert data["knowsAbout"][:3] == ["Python", "Go", "PostgreSQL"] and len(data["knowsAbout"]) <= 20
+        assert data["worksFor"]["name"] == "Finlytics Pvt Ltd"  # the role marked current, not the earlier one
+        assert data["alumniOf"] == [{"@type": "EducationalOrganization", "name": "NIT Calicut"}]
 
 
 # ── SEO ─────────────────────────────────────────────────────────────────────
@@ -375,7 +384,8 @@ class TestBundle:
     def test_zip_contents_and_html_identity(self):
         r = self.result()
         with zipfile.ZipFile(io.BytesIO(r.zip_bytes())) as z:
-            assert z.testzip() is None and sorted(z.namelist()) == [".nojekyll", "README.md", "index.html"]
+            assert z.testzip() is None
+            assert sorted(z.namelist()) == [".nojekyll", "404.html", "README.md", "index.html", "robots.txt"]
             assert z.read("index.html").decode() == r.html and z.read(".nojekyll") == b""
 
     def test_zip_is_deterministic(self):

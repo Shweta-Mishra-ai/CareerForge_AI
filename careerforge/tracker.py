@@ -25,6 +25,7 @@ from careerforge.models import (
     line,
     paragraph,
 )
+from careerforge.text import normalize_url
 
 Status = Literal["saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn"]
 STATUSES: tuple[str, ...] = ("saved", "applied", "screening", "interview", "offer", "rejected", "withdrawn")
@@ -32,6 +33,8 @@ TERMINAL = frozenset({"offer", "rejected", "withdrawn"})
 FOLLOW_UP_DAYS = {"follow_up_1": 7, "follow_up_2": 14}
 CLOSE_OUT_DAYS = 21
 MAX_APPLICATIONS = 500
+MAX_SAVED_SEARCHES = 20
+MAX_SEEN = 1000  # job links already shown; the oldest are forgotten first
 
 
 def _iso_date(value: str) -> str:
@@ -60,6 +63,10 @@ class Application(_Model):
     status: Status = "saved"
     applied_on: IsoDate = ""
     notes: paragraph(1000) = ""
+    source: line(60) = ""  # where the posting was found: "LinkedIn", "a referral from Asha"
+    contact: line(100) = ""  # the recruiter or hiring manager, if you know one
+    next_action: line(150) = ""  # "Send thank-you note"
+    next_action_on: IsoDate = ""
     ats_score: int | None = Field(default=None, ge=0, le=100)
     followups_sent: list[Literal["follow_up_1", "follow_up_2"]] = Field(default_factory=list)
     events: list[Event] = Field(default_factory=list, max_length=100)
@@ -80,8 +87,69 @@ class FollowUp(BaseModel):
     overdue_days: int
 
 
+class ActionDue(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    application_id: str
+    company: str
+    role: str
+    action: str
+    due_on: str
+    overdue_days: int
+
+
+class SavedSearch(_Model):
+    id: str = Field(default_factory=lambda: secrets.token_hex(6), pattern=r"^[0-9a-f]{12}$")
+    query: line(100) = ""
+    location: line(60) = ""
+    remote_only: bool = False
+    boards: list[line(300)] = Field(default_factory=list, max_length=10)  # pasted company careers-page links
+
+
 class Tracker(_Model):
     applications: list[Application] = Field(default_factory=list, max_length=MAX_APPLICATIONS)
+    saved_searches: list[SavedSearch] = Field(default_factory=list, max_length=MAX_SAVED_SEARCHES)
+    seen: list[Link] = Field(default_factory=list, max_length=MAX_SEEN)
+
+    def _with(self, **changes: object) -> Tracker:
+        return Tracker.model_validate({**self.model_dump(), **changes})
+
+    def add_search(
+        self, query: str, *, location: str = "", remote_only: bool = False, boards: list[str] | None = None
+    ) -> tuple[Tracker, SavedSearch]:
+        """(tracker, search). The same query + location + remote setting is stored once; saving it again updates it."""
+        new = SavedSearch(query=query, location=location, remote_only=remote_only, boards=boards or [])
+        if not new.query:
+            raise ValueError("A saved search needs a search phrase")
+
+        def same(other: SavedSearch) -> bool:
+            return (other.query.lower(), other.location.lower(), other.remote_only) == (
+                new.query.lower(),
+                new.location.lower(),
+                new.remote_only,
+            )
+
+        existing = next((o for o in self.saved_searches if same(o)), None)
+        if existing is None:
+            return self._with(saved_searches=[*(o.model_dump() for o in self.saved_searches), new.model_dump()]), new
+        kept = new.model_copy(update={"id": existing.id})
+        return self._with(
+            saved_searches=[(kept if o.id == existing.id else o).model_dump() for o in self.saved_searches]
+        ), kept
+
+    def remove_search(self, search_id: str) -> Tracker:
+        return self._with(saved_searches=[s.model_dump() for s in self.saved_searches if s.id != search_id])
+
+    def mark_seen(self, urls: list[str]) -> Tracker:
+        """Remember job links so the next search can show only what is new. Keeps the newest MAX_SEEN."""
+        valid = []
+        for url in urls:
+            try:
+                if clean := normalize_url(url):
+                    valid.append(clean)
+            except ValueError:
+                continue  # an unsafe or malformed link is simply not remembered
+        merged = list(dict.fromkeys([*self.seen, *valid]))
+        return self._with(seen=merged[-MAX_SEEN:])
 
     def get(self, app_id: str) -> Application:
         for a in self.applications:
@@ -99,6 +167,8 @@ class Tracker(_Model):
         on: date | None = None,
         ats_score: int | None = None,
         notes: str = "",
+        source: str = "",
+        contact: str = "",
     ) -> tuple[Tracker, Application]:
         on = on or date.today()
         app = Application(
@@ -107,14 +177,16 @@ class Tracker(_Model):
             url=url,
             status=status,
             notes=notes,
+            source=source,
+            contact=contact,
             ats_score=ats_score,
             applied_on=on.isoformat() if status == "applied" else "",
             events=[Event(on=on.isoformat(), status=status, note="added")],
         )
-        return Tracker(applications=[*self.applications, app]), app
+        return self._with(applications=[*(a.model_dump() for a in self.applications), app.model_dump()]), app
 
     def _replace(self, app: Application) -> Tracker:
-        return Tracker(applications=[app if a.id == app.id else a for a in self.applications])
+        return self._with(applications=[(app if a.id == app.id else a).model_dump() for a in self.applications])
 
     def update(self, app_id: str, **fields: object) -> Tracker:
         if "id" in fields or "events" in fields or "status" in fields:
@@ -138,7 +210,20 @@ class Tracker(_Model):
 
     def remove(self, app_id: str) -> Tracker:
         self.get(app_id)
-        return Tracker(applications=[a for a in self.applications if a.id != app_id])
+        return self._with(applications=[a.model_dump() for a in self.applications if a.id != app_id])
+
+    def actions_due(self, today: date | None = None) -> list[ActionDue]:
+        """Next actions the user set for themselves that are due (or overdue) on applications still open."""
+        today = today or date.today()
+        out = []
+        for a in self.applications:
+            if not (a.next_action and a.next_action_on) or a.status in TERMINAL:
+                continue
+            due = date.fromisoformat(a.next_action_on)
+            if due <= today:
+                out.append(ActionDue(application_id=a.id, company=a.company, role=a.role, action=a.next_action,
+                                     due_on=a.next_action_on, overdue_days=(today - due).days))  # fmt: skip
+        return sorted(out, key=lambda x: (-x.overdue_days, x.company))
 
     def by_status(self) -> dict[str, list[Application]]:
         return {s: [a for a in self.applications if a.status == s] for s in STATUSES}
@@ -170,8 +255,11 @@ class Tracker(_Model):
 
 def dump_file(profile: Profile, tracker: Tracker | None = None, *, indent: int | None = 2) -> str:
     envelope = {"kind": FILE_KIND, "schema_version": SCHEMA_VERSION, "profile": profile.model_dump(mode="json")}
-    if tracker and tracker.applications:
-        envelope["applications"] = tracker.model_dump(mode="json")["applications"]
+    if tracker:
+        data = tracker.model_dump(mode="json")
+        for key in ("applications", "saved_searches", "seen"):  # only what is used, so older files stay unchanged
+            if data[key]:
+                envelope[key] = data[key]
     return json.dumps(envelope, indent=indent, ensure_ascii=False)
 
 
@@ -182,10 +270,13 @@ def load_file(data: str | bytes) -> tuple[Profile, Tracker]:
     if len(raw) > MAX_FILE_BYTES:  # from_json already enforced this; keep the guarantee local and explicit
         raise ProfileError("Profile file is too large")
     envelope = json.loads(raw.decode("utf-8-sig"))
-    apps = envelope.get("applications", [])
-    if not isinstance(apps, list):
-        raise ProfileError("applications: must be a list")
+    fields: dict[str, list] = {}
+    for key in ("applications", "saved_searches", "seen"):
+        value = envelope.get(key, [])
+        if not isinstance(value, list):
+            raise ProfileError(f"{key}: must be a list")
+        fields[key] = value
     try:
-        return profile, Tracker.model_validate({"applications": apps})
+        return profile, Tracker.model_validate(fields)
     except ValidationError as exc:
         raise ProfileError(_describe(exc)) from exc

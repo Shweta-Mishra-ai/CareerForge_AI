@@ -138,3 +138,108 @@ class TestFile:
     def test_corrupt_files_still_raise_profile_errors(self):
         with pytest.raises(ProfileError):
             load_file("not json")
+
+
+class TestTrackerV2:
+    def test_source_contact_and_next_action_round_trip_through_the_file(self):
+        t, a = Tracker().add("Acme", "Dev", on=D, source="LinkedIn", contact="Ms. Rao")
+        t = t.update(a.id, next_action="Send thank-you note", next_action_on="2026-10-05")
+        _, loaded = load_file(dump_file(Profile(name="A B"), t))
+        got = loaded.get(a.id)
+        assert (got.source, got.contact, got.next_action, got.next_action_on) == (
+            "LinkedIn",
+            "Ms. Rao",
+            "Send thank-you note",
+            "2026-10-05",
+        )
+
+    def test_next_action_dates_are_validated(self):
+        t, a = Tracker().add("Acme", "Dev", on=D)
+        with pytest.raises(ValueError):
+            t.update(a.id, next_action_on="next week")
+
+    def test_actions_due_lists_overdue_open_items_most_overdue_first(self):
+        t, a = Tracker().add("Acme", "Dev", on=D, status="applied")
+        t, b = t.add("Beta", "Dev", on=D, status="applied")
+        t, c = t.add("Gamma", "Dev", on=D, status="applied")
+        t, d = t.add("Delta", "Dev", on=D, status="offer")
+        t = t.update(a.id, next_action="Call", next_action_on="2026-10-08")
+        t = t.update(b.id, next_action="Email", next_action_on="2026-10-10")
+        t = t.update(c.id, next_action="Later", next_action_on="2026-10-11")
+        t = t.update(d.id, next_action="Negotiate", next_action_on="2026-10-01")  # closed: not listed
+        due = t.actions_due(date(2026, 10, 10))
+        assert [(x.company, x.action, x.overdue_days) for x in due] == [("Acme", "Call", 2), ("Beta", "Email", 0)]
+
+    def test_an_action_without_a_date_or_a_date_without_an_action_is_not_due(self):
+        t, a = Tracker().add("Acme", "Dev", on=D)
+        assert t.update(a.id, next_action="Call").actions_due(D) == []
+        assert t.update(a.id, next_action_on="2026-10-01").actions_due(D) == []
+
+    def test_saved_searches_are_stored_once_and_updated_in_place(self):
+        t, one = Tracker().add_search("Backend Engineer", location="Pune")
+        t, again = t.add_search("backend engineer", location="PUNE", boards=["https://jobs.lever.co/acme"])
+        assert len(t.saved_searches) == 1 and again.id == one.id
+        assert t.saved_searches[0].boards == ["https://jobs.lever.co/acme"]
+        t, other = t.add_search("Backend Engineer", location="Pune", remote_only=True)
+        assert len(t.saved_searches) == 2 and other.id != one.id
+        assert [s.id for s in t.remove_search(one.id).saved_searches] == [other.id]
+
+    def test_a_saved_search_needs_a_phrase_and_is_capped(self):
+        with pytest.raises(ValueError):
+            Tracker().add_search("   ")
+        t = Tracker()
+        for i in range(20):
+            t, _ = t.add_search(f"query {i}")
+        with pytest.raises(ValueError):
+            t.add_search("one too many")
+
+    def test_seen_links_are_remembered_deduplicated_and_bounded(self):
+        t = Tracker().mark_seen(["https://a.example/1", "https://a.example/2", "https://a.example/1"])
+        assert t.seen == ["https://a.example/1", "https://a.example/2"]
+        t = t.mark_seen([f"https://b.example/{i}" for i in range(1200)])
+        assert len(t.seen) == 1000 and t.seen[-1] == "https://b.example/1199" and "https://a.example/1" not in t.seen
+
+    def test_unsafe_links_are_skipped_instead_of_raising(self):
+        t = Tracker().mark_seen(["javascript:alert(1)", "", "https://ok.example/1", "data:text/html,x"])
+        assert t.seen == ["https://ok.example/1"]
+
+    def test_searches_and_seen_links_survive_the_profile_file(self):
+        t, _ = Tracker().add_search("Data Engineer", remote_only=True)
+        t = t.mark_seen(["https://a.example/1"])
+        _, loaded = load_file(dump_file(Profile(name="A B"), t))
+        assert loaded.saved_searches[0].query == "Data Engineer" and loaded.seen == ["https://a.example/1"]
+
+    def test_an_unused_tracker_adds_nothing_to_the_file(self):
+        assert set(json.loads(dump_file(Profile(name="A B"), Tracker()))) == {"kind", "schema_version", "profile"}
+        t, _ = Tracker().add_search("x")
+        assert set(json.loads(dump_file(Profile(name="A B"), t))) == {
+            "kind",
+            "schema_version",
+            "profile",
+            "saved_searches",
+        }
+
+    def test_old_files_without_the_new_fields_still_load(self):
+        old = json.loads(dump_file(Profile(name="A B"), Tracker().add("A", "B", on=D)[0]))
+        for a in old["applications"]:
+            for k in ("source", "contact", "next_action", "next_action_on"):
+                a.pop(k, None)
+        _, loaded = load_file(json.dumps(old))
+        assert loaded.applications[0].source == "" and loaded.saved_searches == [] and loaded.seen == []
+
+    @pytest.mark.parametrize("key", ["saved_searches", "seen"])
+    def test_malformed_new_sections_are_rejected_with_a_message(self, key):
+        data = json.loads(dump_file(Profile(name="A B")))
+        data[key] = "nope"
+        with pytest.raises(ProfileError, match=key):
+            load_file(json.dumps(data))
+
+    def test_hostile_values_are_rejected_or_cleaned(self):
+        data = json.loads(dump_file(Profile(name="A B")))
+        data["seen"] = ["javascript:alert(1)"]
+        with pytest.raises(ProfileError):
+            load_file(json.dumps(data))
+        with pytest.raises(ValueError):
+            Tracker().add("Acme", "Dev", on=D, contact="x" * 500)  # longer than the field allows
+        _, a = Tracker().add("Acme", "Dev", on=D, source="Line\x07 one")
+        assert "\x07" not in a.source

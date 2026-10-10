@@ -19,10 +19,10 @@ Cloud, and **never invents experience**.
 | **ATS check** | A transparent 0-100 score against a job posting, or a general ATS-readiness score without one; compare up to 5 postings; section tips | no |
 | **Tailor to a job** | Reword your own bullets in the posting's language. New numbers, employers or skills are rejected; new posting terms wait for your decision | yes |
 | **Insights** | Career timeline and gaps, skill coverage, keyword heat map, learning roadmap for missing skills | no |
-| **CV & portfolio** | 4 CV templates → PDF, Word, text, HTML (the PDF is re-read with an ATS parser so you see how it extracts). A one-file portfolio site in 3 themes, with a free-hosting guide | no |
+| **CV & portfolio** | 4 CV templates → PDF, Word, text, HTML (the PDF is re-read with an ATS parser so you see how it extracts). A portfolio site (light, dark or automatic) with case studies, an optional CV download, `robots.txt`, `sitemap.xml`, `404.html`, `CNAME` and a free-hosting guide | no |
 | **LinkedIn profile** | Your CV rearranged into the text for each part of a LinkedIn profile (headline, About, experience, skills), within LinkedIn's field sizes; only your own words | no |
-| **Letters & interviews** | Verified cover letter, interview questions, and outreach/follow-up drafts (no guessed email addresses) | letter and questions: yes |
-| **Jobs & tracker** | Search public job boards ranked by how well your CV fits; track applications; follow-up reminders at day 7, 14 and 21 | no |
+| **Letters & interviews** | A one-page business-letter cover letter (AI-written and verified, or built without AI from your own bullets) with a lint report and PDF/Word/text; interview questions; outreach drafts for every moment of a search, an e-mail lint, LinkedIn Boolean search (no guessed email addresses) | AI optional for the letter; questions: yes |
+| **Jobs & tracker** | Search public boards and any company's Greenhouse/Lever careers page, ranked with a visible breakdown; filters, saved searches, scam warnings; track applications with next actions; follow-up reminders at day 7, 14 and 21 | no |
 
 Without any API key you still get reading (rule-based), the ATS check, insights, outreach drafts, job search, tracker
 and every export. AI adds reading messy documents, tailoring, cover letters and interview questions.
@@ -37,6 +37,13 @@ and every export. AI adds reading messy documents, tailoring, cover letters and 
   choices, **not** fitted to any vendor's ATS; real ATS products are secret and differ. Every report says so.
 * **Failures are loud.** If the AI is down, out of quota or returns rubbish, you see a sentence, nothing changes, and
   you can continue with the rule-based reader.
+
+## "Industry standard": what that does and does not mean
+
+The letter, outreach, job-search and portfolio features follow written conventions (one-page business letter of about
+250-400 words, short e-mails with one request, WCAG contrast, `robots.txt`) and check your documents against them with
+plain code. **No tool can promise that a recruiter, a hiring manager or an ATS will accept a document.** Every rule,
+where it comes from and how sure we are is in **[docs/STANDARDS.md](docs/STANDARDS.md)**.
 
 ## Quick start
 
@@ -128,8 +135,12 @@ keys (not part of CI).
 
 * The score approximates how ATS software reads a CV. It cannot predict a specific employer's system.
 * Scanned (image-only) PDFs cannot be read. LinkedIn profile *links* cannot be read; use its PDF or data export.
-* The LinkedIn data-export reader and the live job-board APIs were built from documentation and have not been checked
-  against real exports or recorded responses. Failures are reported per source rather than hidden.
+* The LinkedIn data-export reader and the live job-board APIs (Remotive, Jobicy, Adzuna, RemoteOK, Arbeitnow,
+  Greenhouse, Lever) were built from documentation and have not been checked against real exports or recorded
+  responses. Failures are reported per source rather than hidden.
+* Job-search scores use weights we chose (shown on every card); they are not fitted to hiring outcomes. A posting with
+  no scam warning is not proof that it is genuine.
+* LinkedIn's current note length limit and Boolean-search behaviour were not verified; notes stay under 200 characters.
 * The LinkedIn *Save to PDF* layout is handled by the rule reader from knowledge of that layout (sidebar first,
   then name; company, title, then dates with a duration). It is covered by a look-alike sample, **not** by a real
   export; if your PDF comes out wrong, the AI reader or manual editing will fix it, and a sample would help improve it.

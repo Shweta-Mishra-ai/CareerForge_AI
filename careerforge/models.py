@@ -154,6 +154,8 @@ class Project(_Item):
     bullets: list[Bullet] = Field(default_factory=list, max_length=15)
     tech: list[line(60)] = Field(default_factory=list, max_length=30)
     url: Link = ""
+    demo_url: Link = ""  # a live demo or deployed site
+    featured: bool = False  # shown as a larger case-study card on the portfolio; only the user sets this
     stars: int = Field(default=0, ge=0)
 
     _clean_bullets = field_validator("bullets")(_drop_empty)

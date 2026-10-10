@@ -24,16 +24,22 @@ PROFILE = faithful_standard()
 CV = profile_text(PROFILE)
 
 GOOD_PARAS = [
-    "Northwind Payments builds the kind of high-volume payment platform I enjoy working on. At Finlytics I designed an "
-    "event-driven settlement service handling 2M transactions/day using Kafka and PostgreSQL, so the scale and the "
-    "reliability expectations in your Senior Backend Engineer role are familiar to me.",
-    "Over seven years I have worked in Python and Go. I cut p95 API latency from 480ms to 190ms by introducing Redis "
-    "caching, and I mentored 4 engineers while leading a migration from a monolith to 6 services on Kubernetes. That "
-    "combination of hands-on delivery and mentoring maps directly onto what you describe, and I would bring the same "
-    "habits of measuring results and sharing knowledge with your team.",
-    "I would welcome the chance to talk about how my experience could help Northwind Payments grow its platform. "
-    "Thank you for considering my application; I look forward to hearing from you and to learning more about your "
-    "engineering team, the problems you are tackling next, and how I could contribute from the start.",
+    "Northwind Payments is hiring a Senior Backend Engineer, and the role matches the work I have done for the last "
+    "eight years: building payment and logistics APIs in Python and Go. At Finlytics I designed an event-driven "
+    "settlement service that handles 2M transactions/day on Kafka and PostgreSQL, so the volume and the reliability "
+    "your posting describes are familiar to me.",
+    "Performance is a good example of how I work. By introducing Redis caching I cut p95 API latency from 480ms to "
+    "190ms. Earlier, at ShipFast Logistics, I built real-time tracking APIs in Flask serving 50k requests/min and "
+    "wrote CI/CD pipelines with GitHub Actions and Docker, which is the same discipline of measuring a result before "
+    "and after a change. I like to start from a measurable goal, ship the smallest change that moves it, and check the "
+    "numbers afterwards; that habit is what I would apply to the systems behind Northwind Payments.",
+    "Your posting also asks for mentoring and for experience running services on Kubernetes. At Finlytics I mentored "
+    "4 engineers and led the migration from a monolith to 6 services on Kubernetes, and that combination of hands-on "
+    "delivery and sharing knowledge with a team is what I would bring to yours from the first month. In both roles I "
+    "worked closely with the engineers around me, and I enjoy making a team's work easier to understand and maintain.",
+    "I would welcome a conversation about how this experience could help Northwind Payments with the problems your "
+    "engineering team is tackling next, and I would be glad to walk you through any of these projects in more "
+    "detail. Thank you for considering my application.",
 ]
 
 
@@ -81,6 +87,11 @@ class TestClaimsChecker:
             + self.check("I have 9 years of experience.", JD)
         )
 
+    def test_numbers_the_user_typed_into_the_form_are_theirs_but_others_still_flagged(self):
+        text = "I can start on 1 November and cut costs by 77%."
+        issues = unsupported_claims(text, profile_text=CV, years=7, extra_known="I can start on 1 November")
+        assert len(issues) == 1 and "77" in issues[0] and "1," not in issues[0]
+
 
 class TestCoverLetter:
     def write(self, *replies, **kw):
@@ -90,8 +101,11 @@ class TestCoverLetter:
     def test_verified_letter_is_assembled_by_code_not_by_the_model(self):
         draft, fake = self.write({"paragraphs": GOOD_PARAS})
         assert draft.verified and draft.issues == ()
-        assert draft.text.startswith("October 10, 2026\n\nDear Hiring Manager,\n\n")
-        assert draft.text.endswith("Sincerely,\nPriya Nair\npriya.nair@example.com\n+91 98765 43210")
+        text = draft.text
+        assert text.startswith("Priya Nair\npriya.nair@example.com | +91 98765 43210\n")  # sender block first
+        assert "\n\nOctober 10, 2026\n\n" in text and "\n\nDear Hiring Manager,\n\n" in text
+        assert "Re: Application for Senior Backend Engineer" in text
+        assert text.endswith("\n\nSincerely,\nPriya Nair\n\nEnclosure: Curriculum Vitae\n")
         assert len(fake.requests) == 1 and "Northwind Payments" in fake.requests[0].user
 
     def test_invented_claims_trigger_one_repair_and_a_fixed_draft_is_accepted(self):
@@ -119,7 +133,8 @@ class TestCoverLetter:
 
     def test_too_short_is_flagged(self):
         draft, _ = self.write(
-            {"paragraphs": ["Short one.", "Short two."]}, {"paragraphs": ["Short one.", "Short two."]}
+            {"paragraphs": ["Short one.", "Short two.", "Short three."]},
+            {"paragraphs": ["Short one.", "Short two.", "Short three."]},
         )
         assert any("length" in i for i in draft.issues)
 

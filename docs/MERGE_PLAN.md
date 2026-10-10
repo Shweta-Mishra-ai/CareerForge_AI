@@ -209,10 +209,18 @@ the name after the sidebar; company-first with numeric dates; a LinkedIn-style l
 format) and are committed as fixtures (`tests/fixtures/real_*.pdf`). They found 8 reader gaps, all fixed with mutation-
 checked tests. The LinkedIn-style sample is NOT a real export.
 
+## Industry-standard upgrade (letter, outreach, jobs, portfolio)
+See [STANDARDS.md](STANDARDS.md) for every rule with its source and confidence. Built and tested: business-letter
+engine and lint (`writing/letter_*.py`, mutation-checked), evidence pairing, AI-free letter, letter renderers
+(HTML/PDF/DOCX/TXT); outreach moments, e-mail lint, Boolean search; four more job sources, career-page links, a
+disclosed multi-part ranking, filters, scam patterns, saved searches; portfolio auto theme, case studies, CV download,
+site files. Browser-tested with axe (light and dark) and Lighthouse.
+
 ## Still unverified (cannot be checked from the build environment)
 * A real Streamlit Cloud deployment (system packages, fonts, Python version selection): see docs/DEPLOY.md.
 * Live Gemini/Groq behaviour and current free model names: run `python -m careerforge.ai.doctor` with real keys.
-* Live job-board APIs (Remotive, Jobicy, Adzuna) and a real LinkedIn data export.
+* Live job-board APIs (Remotive, Jobicy, Adzuna, RemoteOK, Arbeitnow, Greenhouse, Lever) and a real LinkedIn data export.
+* LinkedIn's current connection-note limit and Boolean search; whether any given ATS or hiring manager accepts the output.
 * The Chrome extension against today's LinkedIn markup.
 * DOCX in Microsoft Word; non-Latin fonts on Streamlit Cloud.
 

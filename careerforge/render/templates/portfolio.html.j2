@@ -6,6 +6,14 @@
 <meta http-equiv="Content-Security-Policy" content="{{ csp }}">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="{{ theme.color_scheme }}">
+{% if theme.dark %}
+<meta name="theme-color" content="{{ theme.bg }}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{{ theme.dark.bg }}" media="(prefers-color-scheme: dark)">
+{% else %}
+<meta name="theme-color" content="{{ theme.bg }}">
+{% endif %}
+{% if options.noindex %}<meta name="robots" content="noindex">{% endif %}
+<link rel="icon" href="{{ favicon }}">
 <meta name="generator" content="CareerForge">
 <title>{{ title }}</title>
 {% if description %}
@@ -21,14 +29,12 @@
 <link rel="canonical" href="{{ options.site_url }}">
 <meta property="og:url" content="{{ options.site_url }}">
 {% endif %}
-{% set person = {"@context": "https://schema.org", "@type": "Person", "name": p.name} %}
-{% if p.headline %}{% set _ = person.update({"jobTitle": p.headline}) %}{% endif %}
-{% if description %}{% set _ = person.update({"description": description}) %}{% endif %}
-{% if options.site_url %}{% set _ = person.update({"url": options.site_url}) %}{% endif %}
-{% if sameas %}{% set _ = person.update({"sameAs": sameas}) %}{% endif %}
 <script type="application/ld+json">{{ person | tojson }}</script>
 <style>
 :root { --bg: {{ theme.bg }}; --surface: {{ theme.surface }}; --text: {{ theme.text }}; --muted: {{ theme.muted }}; --accent: {{ theme.accent }}; --on-accent: {{ theme.accent_text }}; --border: {{ theme.border }}; --font: {{ theme.font }}; }
+{% if theme.dark %}
+@media (prefers-color-scheme: dark) { :root { --bg: {{ theme.dark.bg }}; --surface: {{ theme.dark.surface }}; --text: {{ theme.dark.text }}; --muted: {{ theme.dark.muted }}; --accent: {{ theme.dark.accent }}; --on-accent: {{ theme.dark.accent_text }}; --border: {{ theme.dark.border }}; } }
+{% endif %}
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -65,6 +71,14 @@ h3 { font-size: 1.15rem; margin: 0; }
 .timeline li li::before { display: none; }
 .contact { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
 .contact a { font-weight: 600; }
+.button { display: inline-block; margin-top: 1.5rem; padding: 0.6rem 1.2rem; border-radius: 0.5rem; background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.button:hover { text-decoration: underline; }
+.links { margin: 0.5rem 0 0; font-weight: 600; }
+.featured { display: grid; gap: 1.25rem; list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.case { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 0.6rem; padding: 1.4rem 1.5rem; }
+.case h3 { font-size: 1.35rem; }
+.badge { display: inline-block; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 0.35rem; }
+h3.sub { font-size: 1rem; color: var(--muted); font-weight: 600; margin: 0 0 0.75rem; }
 footer { margin-top: 3.5rem; padding: 1.5rem 0 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.9rem; }
 @media print { nav, .skip { display: none; } body { background: #fff; color: #000; } a { color: #000; } .card { break-inside: avoid; } }
 </style>
@@ -75,6 +89,7 @@ footer { margin-top: 3.5rem; padding: 1.5rem 0 3rem; border-top: 1px solid var(-
 <div class="wrap">
 <h1>{{ p.name }}</h1>
 {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
+{% if cv_link %}<a class="button" href="{{ cv_link }}" download>Download my CV (PDF)</a>{% endif %}
 {% if stats %}
 <ul class="stats" aria-label="Summary figures">
 {% for s in stats %}<li><strong>{{ s.value }}</strong><span>{{ s.label }}</span></li>
@@ -99,17 +114,38 @@ footer { margin-top: 3.5rem; padding: 1.5rem 0 3rem; border-top: 1px solid var(-
 {% if s == "about" %}
 <p>{{ p.summary }}</p>
 {% elif s == "projects" %}
+{% macro project_links(pr) %}{% if pr.url or pr.demo_url %}<p class="links">{% if pr.url %}<a href="{{ pr.url }}">Source</a>{% endif %}{% if pr.url and pr.demo_url %} &middot; {% endif %}{% if pr.demo_url %}<a href="{{ pr.demo_url }}">Live demo</a>{% endif %}</p>{% endif %}{% endmacro %}
+{% if featured %}
+{% if others %}<h3 class="sub">Featured</h3>{% endif %}
+<ul class="featured">
+{% for pr in featured %}
+<li><article class="case">
+<p class="badge">Case study</p>
+<h3>{{ pr.name }}</h3>
+{% if pr.stars %}<p class="meta"><span aria-hidden="true">★</span> {{ pr.stars }} {{ "star" if pr.stars == 1 else "stars" }} on GitHub</p>{% endif %}
+{% if pr.description %}<p>{{ pr.description }}</p>{% endif %}
+{% if pr.bullets %}<ul class="points">{% for b in pr.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+{% if pr.tech %}<ul class="chips" aria-label="Technologies">{% for t in pr.tech %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+{{ project_links(pr) }}
+</article></li>
+{% endfor %}
+</ul>
+{% endif %}
+{% if others %}
+{% if featured %}<h3 class="sub">More projects</h3>{% endif %}
 <ul class="grid">
-{% for pr in p.projects %}
+{% for pr in others %}
 <li><article class="card">
 <h3>{% if pr.url %}<a href="{{ pr.url }}">{{ pr.name }}</a>{% else %}{{ pr.name }}{% endif %}</h3>
 {% if pr.stars %}<p class="meta"><span aria-hidden="true">★</span> {{ pr.stars }} {{ "star" if pr.stars == 1 else "stars" }} on GitHub</p>{% endif %}
 {% if pr.description %}<p>{{ pr.description }}</p>{% endif %}
 {% if pr.bullets %}<ul class="points">{% for b in pr.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
 {% if pr.tech %}<ul class="chips" aria-label="Technologies">{% for t in pr.tech %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+{% if pr.demo_url %}<p class="links"><a href="{{ pr.demo_url }}">Live demo</a></p>{% endif %}
 </article></li>
 {% endfor %}
 </ul>
+{% endif %}
 {% elif s == "experience" %}
 <ol class="timeline">
 {% for e in blocks["experience"].entries %}

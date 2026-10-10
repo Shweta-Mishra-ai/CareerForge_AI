@@ -173,14 +173,38 @@ def _cv_tab(profile: Profile) -> None:
 # ── portfolio ───────────────────────────────────────────────────────────────
 
 
+def _portfolio_cv(profile: Profile) -> bytes | None:
+    """The CV PDF for the portfolio (ATS Classic), or None with the reason shown. Cached per profile."""
+    key = ("pf-cv-pdf", profile.content_hash())
+    cached = st.session_state.get("pf-cv-cache")
+    if cached and cached[0] == key:
+        return cached[1]
+    try:
+        with st.spinner("Making your CV PDF..."):
+            data = render_cv_pdf(profile, RenderOptions(template="ats-classic")).data
+    except PdfEngineUnavailable as exc:
+        st.warning(str(exc), icon=":material/warning:")
+        return None
+    except NotReady as exc:
+        st.warning(
+            f"The CV is not ready to export, so it is left out of the site. {explain(exc)}", icon=":material/warning:"
+        )
+        return None
+    st.session_state["pf-cv-cache"] = (key, data)
+    return data
+
+
 def _portfolio_tab(profile: Profile) -> None:
     st.write("A one-file website you can host for free. No scripts, no trackers, works offline.")
     c1, c2 = st.columns(2)
-    theme = c1.radio("Theme", list(THEMES), format_func=lambda k: THEMES[k].label, horizontal=True, key="pf-theme")
-    use_accent = c2.checkbox("Use my own accent colour", key="pf-use-accent")
-    accent = (
-        c2.color_picker("Accent colour", "#1d4ed8", key="pf-accent", disabled=not use_accent) if use_accent else None
-    )
+    theme = c1.radio("Theme", list(THEMES), format_func=lambda k: THEMES[k].label, key="pf-theme")
+    is_auto = theme == "auto"
+    use_accent = c2.checkbox("Use my own accent colour", key="pf-use-accent", disabled=is_auto)
+    if is_auto:
+        c2.caption(
+            "The automatic theme uses fixed colours: no single accent is readable on both a light and a dark page."
+        )
+    accent = c2.color_picker("Accent colour", "#1d4ed8", key="pf-accent") if use_accent and not is_auto else None
     with st.expander("What to show"):
         show_email = st.checkbox("Show my email address", value=True, key="pf-email")
         show_phone = st.checkbox("Show my phone number (invites spam; off by default)", value=False, key="pf-phone")
@@ -189,6 +213,19 @@ def _portfolio_tab(profile: Profile) -> None:
         )
         site_url = st.text_input(
             "Address you will publish at (optional)", key="pf-url", placeholder="https://yourname.dev"
+        )
+        custom_domain = st.text_input(
+            "Your own domain (optional)",
+            key="pf-domain",
+            placeholder="yourname.dev",
+            help="Adds the CNAME file GitHub Pages needs. You still point the domain's DNS at GitHub yourself.",
+        )
+        noindex = st.checkbox("Ask search engines not to list this page", value=False, key="pf-noindex")
+        include_cv = st.checkbox(
+            "Add my CV (PDF) to the site with a download button",
+            value=False,
+            key="pf-cv",
+            help="Uses the ATS Classic template. The CV is public too once you publish.",
         )
         hide = st.multiselect(
             "Hide sections",
@@ -204,6 +241,9 @@ def _portfolio_tab(profile: Profile) -> None:
             show_phone=show_phone,
             show_stats=show_stats,
             hidden=frozenset(hide),
+            custom_domain=custom_domain,
+            noindex=noindex,
+            include_cv=include_cv,
         )
     except ValidationError as exc:
         st.error(f"Options: {_first_error(exc)}", icon=":material/error:")
@@ -213,8 +253,9 @@ def _portfolio_tab(profile: Profile) -> None:
         for issue in gate.blockers:
             st.error(issue.message, icon=":material/error:")
         return
+    cv_pdf = _portfolio_cv(profile) if include_cv else None
     try:
-        built = build_portfolio(profile, options)
+        built = build_portfolio(profile, options, cv_pdf=cv_pdf)
     except (ValueError, NotReady) as exc:
         st.error(explain(exc) if isinstance(exc, NotReady) else str(exc), icon=":material/error:")
         return
@@ -235,7 +276,8 @@ def _portfolio_tab(profile: Profile) -> None:
     with d2:
         download("Download index.html only", built.html, "index.html", "text/html", key="dl-pf-html")
     st.caption(
-        "The page is public once you publish it. Read it once and hide anything you do not want strangers to see."
+        "The page is public once you publish it. Read it once and hide anything you do not want strangers to see. "
+        "Mark your best projects as featured case studies in **Review & edit**."
     )
     with st.expander("How to publish it for free"):
         st.markdown(built.readme)

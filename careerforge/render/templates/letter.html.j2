@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="{{ csp }}">
+<meta name="generator" content="CareerForge">
+<title>{{ letter.sender_name }} - Cover letter</title>
+<meta name="author" content="{{ letter.sender_name }}">
+<style>
+:root { --accent: {{ accent }}; --font: {{ font_stack }}; --fs: {{ fs }}pt; --lh: {{ lh }}; --margin: {{ margin }}mm; }
+@page { size: {{ paper }}; margin: {{ margin }}mm; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font); font-size: var(--fs); line-height: var(--lh); color: #111; background: #fff; }
+@media screen { body { max-width: 210mm; margin: 0 auto; padding: var(--margin); } }
+p, h1, ul { margin: 0; padding: 0; }
+ul { list-style: none; }
+.sender h1 { font-size: 1.7em; line-height: 1.15; }
+.sender ul { margin-top: 0.2em; color: #444; font-size: 0.95em; }
+.date { margin-top: 1.6em; }
+.recipient { margin-top: 1.1em; }
+.recipient li { line-height: 1.35; }
+.subject { margin-top: 1.1em; font-weight: 700; }
+.salutation { margin-top: 1.1em; }
+.body p { margin-top: 0.8em; text-align: left; orphans: 3; widows: 3; }
+.closing { margin-top: 1.3em; break-inside: avoid; }
+.closing .name { margin-top: 2.2em; font-weight: 700; }
+.enclosure { margin-top: 1.2em; color: #444; font-size: 0.95em; }
+.t-ats-classic .sender h1 { letter-spacing: 0.01em; }
+.t-ats-classic .sender { padding-bottom: 0.5em; border-bottom: 1pt solid #111; }
+.t-ats-modern .sender h1 { color: var(--accent); }
+.t-ats-modern .sender { padding-bottom: 0.5em; border-bottom: 2pt solid var(--accent); }
+.t-executive .sender { text-align: center; padding-bottom: 0.6em; border-bottom: 0.8pt solid var(--accent); }
+.t-executive .sender h1 { font-weight: 400; text-transform: uppercase; letter-spacing: 0.03em; }
+.t-executive .sender ul li { display: inline; }
+.t-executive .sender ul li + li::before { content: " \00b7  "; }
+</style>
+</head>
+<body class="t-{{ template }}">
+<header class="sender">
+<h1>{{ letter.sender_name }}</h1>
+<ul>{% for line in letter.sender_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+</header>
+<p class="date">{{ letter.date_text }}</p>
+{% if letter.recipient_lines %}<ul class="recipient">{% for line in letter.recipient_lines %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}
+{% if letter.subject %}<p class="subject">{{ letter.subject }}</p>{% endif %}
+<p class="salutation">{{ letter.salutation }}</p>
+<div class="body">{% for para in letter.paragraphs %}<p>{{ para }}</p>{% endfor %}</div>
+<div class="closing"><p>{{ letter.closing }}</p><p class="name">{{ letter.sender_name }}</p></div>
+{% if letter.enclosure %}<p class="enclosure">{{ letter.enclosure }}</p>{% endif %}
+</body>
+</html>

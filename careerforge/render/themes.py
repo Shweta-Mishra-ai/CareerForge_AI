@@ -25,7 +25,8 @@ class Theme:
     accent_text: str  # text drawn on top of `accent`
     border: str
     font: Markup
-    color_scheme: str  # "dark" | "light": tells the browser how to draw form controls and scrollbars
+    color_scheme: str  # "dark" | "light" | "light dark": tells the browser how to draw form controls and scrollbars
+    dark: Theme | None = None  # palette used when the visitor's device prefers dark (the "auto" theme only)
 
     def text_pairs(self) -> list[tuple[str, str, str]]:
         """Every (foreground, background, what) combination the stylesheet draws as text."""
@@ -40,7 +41,8 @@ class Theme:
         ]
 
     def worst_contrast(self) -> float:
-        return min(contrast_ratio(fg, bg) for fg, bg, _ in self.text_pairs())
+        worst = min(contrast_ratio(fg, bg) for fg, bg, _ in self.text_pairs())
+        return min(worst, self.dark.worst_contrast()) if self.dark else worst
 
 
 THEMES: dict[str, Theme] = {
@@ -67,8 +69,19 @@ THEMES: dict[str, Theme] = {
 
 
 def with_accent(theme: Theme, accent: str) -> Theme:
-    """Theme with a custom accent. Rejects one that cannot be read on this theme's backgrounds."""
+    """Theme with a custom accent. Rejects one that cannot be read on this theme's backgrounds. The automatic theme
+    has two palettes and, with these backgrounds, no single colour passes on both, so it always refuses."""
     from dataclasses import replace
+
+    if theme.dark is not None:
+        try:
+            return replace(with_accent(replace(theme, dark=None), accent), dark=with_accent(theme.dark, accent))
+        except ValueError as exc:
+            raise ValueError(
+                "The automatic theme switches between a light and a dark page, and no single colour is readable on "
+                "both (checked: 4,096 sample colours, none passed). Choose Light, Dark or Minimal to use your own "
+                f"colour. Detail: {exc}"
+            ) from exc
 
     on_accent = "#ffffff" if contrast_ratio("#ffffff", accent) >= contrast_ratio("#000000", accent) else "#000000"
     candidate = replace(theme, accent=accent, accent_text=on_accent)
@@ -80,3 +93,15 @@ def with_accent(theme: Theme, accent: str) -> Theme:
                     f"{contrast_ratio(fg, bg):.1f}:1, needs {MIN_CONTRAST}:1). Choose a different colour"
                 )
     return candidate
+
+
+def _auto() -> Theme:
+    from dataclasses import replace
+
+    return replace(
+        THEMES["light"], key="auto", label="Automatic (light or dark, like the visitor's device)",
+        color_scheme="light dark", dark=THEMES["dark"],
+    )  # fmt: skip
+
+
+THEMES["auto"] = _auto()

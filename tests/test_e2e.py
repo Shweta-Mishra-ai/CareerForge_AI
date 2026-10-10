@@ -9,6 +9,7 @@ import pdfplumber
 import pytest
 from e2e_fixtures import CV, JD, PROFILE, Session
 from playwright.sync_api import expect
+from test_writing import GOOD_PARAS
 
 from careerforge.ats.checks import check_pdf
 from careerforge.models import Profile
@@ -63,13 +64,38 @@ def test_old_cv_to_a_submittable_cv_and_portfolio(session):
     s.assert_clean()
 
 
+def test_portfolio_v2_options_reach_the_downloaded_site(session):
+    """Automatic theme, the CV download button, a custom domain and no-index: all land in the real zip."""
+    s, page = session, session.page
+    s.load_cv()
+    s.go("CV & portfolio")
+    s.choose("Portfolio website")
+    s.choose("Automatic (light or dark, like the visitor's device)")
+    page.get_by_text("What to show").click()
+    domain = page.get_by_role("textbox", name="Your own domain (optional)")
+    domain.fill("jane.dev")
+    domain.blur()
+    page.get_by_text("Add my CV (PDF) to the site with a download button").click()
+    page.get_by_text("Ask search engines not to list this page").click()
+    expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
+    page.wait_for_timeout(1500)
+    z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
+    names = set(z.namelist())
+    assert {"index.html", "404.html", "robots.txt", "CNAME", "Priya_Nair_CV.pdf", "README.md", ".nojekyll"} <= names
+    assert z.read("CNAME") == b"jane.dev\n" and z.read("robots.txt") == b"User-agent: *\nDisallow: /\n"
+    html = z.read("index.html").decode()
+    assert "prefers-color-scheme: dark" in html and 'name="robots" content="noindex"' in html
+    assert 'href="Priya_Nair_CV.pdf" download' in html and z.read("Priya_Nair_CV.pdf")[:5] == b"%PDF-"
+    s.assert_clean()
+
+
 def test_save_load_round_trip_restores_everything(session, browser, server, tmp_path):
     s, page = session, session.page
     s.load_cv()
     s.go("Jobs & tracker")
     s.choose("Application tracker")
-    page.get_by_label("Company").fill("Acme")
-    page.get_by_label("Role").fill("Backend Engineer")
+    page.get_by_label("Company", exact=True).fill("Acme")
+    page.get_by_label("Role", exact=True).fill("Backend Engineer")
     s.click("Add application")
     expect(
         page.locator("td[role=gridcell]", has_text="Acme").first
@@ -164,11 +190,14 @@ def test_ai_journey_read_tailor_letter_interview(ai_session, ai):
     expect(preview).to_contain_text("REST API endpoints")
 
     s.go("Letters & interviews")
-    page.get_by_label("Company").fill("Northwind Payments")
-    s.click("Write my cover letter")
+    page.get_by_label("Company", exact=True).fill("Northwind Payments")
+    s.click("Create my cover letter")
     expect(page.get_by_text("Checked: every number, name and skill")).to_be_visible(timeout=30000)
-    box = page.get_by_label("Your letter (edit freely)")
-    expect(box).to_have_value(re.compile(r"Dear Hiring Manager,[\s\S]*Priya Nair"))
+    box = page.get_by_label(re.compile("Letter body"))
+    expect(box).to_have_value(re.compile("^" + re.escape(GOOD_PARAS[0][:40])))
+    with pdfplumber.open(s.download("PDF").path()) as letter_pdf:
+        letter_text = " ".join(pg.extract_text() or "" for pg in letter_pdf.pages)
+        assert len(letter_pdf.pages) == 1 and "Dear Hiring Manager," in letter_text and "Priya Nair" in letter_text
     s.choose("Interview prep")
     s.click("Prepare my interview questions")
     expect(page.get_by_text("Technical: How did you reduce API latency at Finlytics?")).to_be_visible(timeout=30000)
