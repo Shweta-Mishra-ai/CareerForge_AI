@@ -227,19 +227,24 @@ def _parse(text: str) -> tuple[Profile, list[str]]:
     return profile_from_extraction(value)
 
 
-def build_extract_request(source_text: str, max_tokens: int = 4096) -> Request:
-    user = f"{EXTRACT_SCHEMA}\n\n{fence('source', source_text)}"
+def build_extract_request(source_text: str, max_tokens: int = 4096, hint: str = "") -> Request:
+    """`hint` must be a trusted constant from our code (e.g. the LinkedIn PDF description), never document text."""
+    user = (
+        f"{hint}\n\n{EXTRACT_SCHEMA}\n\n{fence('source', source_text)}"
+        if hint
+        else f"{EXTRACT_SCHEMA}\n\n{fence('source', source_text)}"
+    )
     return Request(system=EXTRACT_SYSTEM, user=user, temperature=0.0, max_tokens=max_tokens, json_mode=True)
 
 
 def extract_profile(
-    client: AIClient, document_text: str, *, max_chars: int = 24000, max_tokens: int = 4096
+    client: AIClient, document_text: str, *, max_chars: int = 24000, max_tokens: int = 4096, hint: str = ""
 ) -> ExtractionResult:
     """Extract a grounded Profile from a CV/LinkedIn document's text. Raises AIError subclasses / NotEnoughText."""
     src = sanitize_source(document_text, max_chars)
     if len(src.text) < MIN_SOURCE_CHARS:
         raise NotEnoughText("There is not enough text in this document to build a profile from")
-    (profile, warnings), completion = client.structured(build_extract_request(src.text, max_tokens), _parse)
+    (profile, warnings), completion = client.structured(build_extract_request(src.text, max_tokens, hint), _parse)
 
     grounded, report = ground_profile(profile, src.text)
     notes = list(warnings)

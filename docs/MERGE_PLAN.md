@@ -47,7 +47,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | 0 | Foundation: hygiene, pinned deps, ruff, pytest, CI, fixtures, characterisation tests | ✅ |
 | 1 | `Profile` model, JSON import/export, legacy adapter, skills taxonomy, **submission-readiness gate** | ✅ |
 | 2 | AI layer: `google-genai` + Groq cascade, retry/backoff, validated output, grounding checker, injection-safe extraction | ✅ (rewrite/tailor prompts + rewrite-mode grounding land with their features in Phase 4) |
-| 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn-PDF/GitHub; SSRF-safe URL fetch; review-and-edit form | ⬜ |
+| 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn (PDF + data export)/GitHub; SSRF-safe URL fetch; extension fixes; review logic | ✅ (the Streamlit review-and-edit *form* is built with the UI in Phase 6; its logic, `careerforge/review.py`, is done) |
 | 4 | Feature port (matrix below) | ⬜ |
 | 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
 | 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
@@ -101,8 +101,23 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
   to verify model names and wire formats (manual; excluded from CI).
 * Legacy `core/ai_engine.py` still imports the end-of-life `google-generativeai`; it is removed with `app.py` in Phase 6.
 
+## Phase 3 notes
+* `careerforge/ingest/`: `pdf` (column-aware XY-cut reader on pdfplumber word positions; MIT-only deps), `docx_reader`,
+  `files` (type sniffing, 10 MB cap, zip-bomb guard), `linkedin` (data-export CSVs, explicit file allow-list),
+  `github` (projects only, nothing invented), `web` (SSRF-safe fetch with pinned connections), `pipeline` (one entry point).
+* Measured, not assumed: `pdfplumber extract_text()` and `layout=True` BOTH interleave side-by-side columns line by
+  line (the old README claim was wrong). PyMuPDF reads columns correctly but is AGPL, so it was not adopted.
+* The PDF reader was tuned on generated layouts (sidebar left/right, header + columns, 3 columns, tables, dates
+  columns) plus a property test (no word lost/duplicated). It has NOT been validated on a corpus of real-world CV
+  PDFs (Word/Canva/LaTeX exports): collect a few and add them as fixtures.
+* Extension: URL parsed (not substring-matched), no host permissions, success only after the copy resolved, honest
+  labelling, tested in real Chromium. Selectors still depend on LinkedIn's markup.
+
 ## Open unknowns (verify, do not assume)
+- LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).
+- Real-world PDF layouts beyond the generated ones (see Phase 3 notes).
+- GitHub import cannot prove the account belongs to the user (needs OAuth); the UI must say "import your own account only".
 - Which Gemini/Groq model IDs are currently served. Defaults in `careerforge/ai/settings.py` are best guesses; override with `CAREERFORGE_GEMINI_MODELS` / `CAREERFORGE_GROQ_MODELS`. Unserved models are skipped automatically; confirm with the live smoke test.
 - Live job-API behaviour (Remotive, Jobicy): to be recorded once and replayed in tests.
-- `pdfplumber(layout=True)` column interleaving on two-column CVs: to be tested with `cv_two_column.txt`-style PDFs in Phase 3.
+- ~~`pdfplumber(layout=True)` column interleaving~~ - RESOLVED in Phase 3: confirmed broken, replaced (see notes above).
 - Whether Streamlit Cloud sanitises `data:` download links: replaced by `st.download_button` regardless.
