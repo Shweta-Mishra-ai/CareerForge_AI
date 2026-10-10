@@ -181,6 +181,34 @@ for _skill in TAXONOMY:
     for _alias in (_skill.name, *_skill.aliases):
         _BY_KEY[clean_text(_alias).lower()] = _skill
 
+# Knowing the key skill reasonably implies the base one (a Flask developer knows Python). One direction only:
+# a posting asking for Flask is NOT satisfied by "Python".
+IMPLIES: dict[str, tuple[str, ...]] = {
+    **dict.fromkeys(("PostgreSQL", "MySQL", "SQLite", "Snowflake", "BigQuery"), ("SQL",)),
+    **dict.fromkeys(("Pandas", "NumPy", "Django", "Flask", "FastAPI", "Celery", "Matplotlib", "Seaborn"), ("Python",)),
+    **dict.fromkeys(("scikit-learn", "PyTorch", "TensorFlow", "Keras"), ("Python", "Machine Learning")),
+    **dict.fromkeys(("React", "Angular", "Vue.js", "Svelte", "Node.js", "TypeScript"), ("JavaScript",)),
+    "Next.js": ("React", "JavaScript"),
+    "Redux": ("React", "JavaScript"),
+    "Express.js": ("Node.js", "JavaScript"),
+    "Spring Boot": ("Java",),
+    "Rails": ("Ruby",),
+    "Laravel": ("PHP",),
+    **dict.fromkeys(("Tailwind CSS", "Sass", "Bootstrap"), ("CSS",)),
+    "GitHub Actions": ("CI/CD", "Git"),
+    "GitLab CI": ("CI/CD", "Git"),
+    "Jenkins": ("CI/CD",),
+    **dict.fromkeys(("GitHub", "GitLab"), ("Git",)),
+    "Deep Learning": ("Machine Learning",),
+    "LLM": ("NLP",),
+}
+
+
+def implied_by(skill: str, have: set[str]) -> str | None:
+    """A skill in `have` that implies `skill`, or None."""
+    return next((h for h in sorted(have) if skill in IMPLIES.get(h, ())), None)
+
+
 KNOWN_NAMES = frozenset(s.name for s in TAXONOMY)
 CATEGORY_ORDER = (L, FE, BE, DATA, DB, CLOUD, TOOLS, PRAC)
 
@@ -224,6 +252,10 @@ def _token(alias: str) -> str:
     return rf"(?<![\w+#.]){re.escape(alias)}(?![\w+#]|\.\w)"
 
 
+_EXPLICIT = r"[,;|•·▪/:(]"  # a real list delimiter (start/end of line does not count for the and/or forms)
+_JOIN = r"(?:and|or|&)"
+
+
 def _build_patterns() -> list[tuple[Skill, re.Pattern[str] | None, re.Pattern[str] | None]]:
     out = []
     for skill in TAXONOMY:
@@ -233,7 +265,14 @@ def _build_patterns() -> list[tuple[Skill, re.Pattern[str] | None, re.Pattern[st
         weak_re = None
         if skill.weak:
             alt = "|".join(re.escape(w) for w in skill.weak)
-            weak_re = re.compile(_LIST_DELIMS + "(?:" + alt + ")" + _LIST_END, re.I | re.M)
+            # (A) delimited on both sides, any case:       "Python, go, R"
+            both = _LIST_DELIMS + "(?:" + alt + ")" + _LIST_END
+            # (B)/(C) joined by and/or on one side, an explicit delimiter on the other, EXACT canonical casing:
+            #         "SQL, Excel and stakeholders"   "Tableau, Python and Excel,"
+            names = "|".join(re.escape(n) for n in {skill.name, *(w.title() for w in skill.weak)})
+            left = rf"{_EXPLICIT}\s*(?:{names})\s+{_JOIN}\s"
+            right = rf"\s{_JOIN}\s+(?:{names})\s*(?:{_EXPLICIT[:-1]}\)]|$)"
+            weak_re = re.compile(f"(?i:{both})|{left}|{right}", re.M)
         out.append((skill, strong_re, weak_re))
     return out
 
@@ -242,12 +281,28 @@ _PATTERNS = _build_patterns()
 
 
 def find_skills(text: str) -> list[str]:
-    """Skills mentioned in `text`, canonical names, in taxonomy order. Precision over recall."""
+    """Skills mentioned in `text`, canonical names, in taxonomy order. Precision over recall.
+
+    A skill whose every mention lies inside a longer skill's mention is dropped ("GitHub" inside "GitHub Actions",
+    "Spring" inside "Spring Boot"), so one phrase is never counted twice.
+    """
     body = clean_text(text, multiline=True)
     if not body:
         return []
-    return [
-        skill.name
-        for skill, strong, weak in _PATTERNS
-        if (strong and strong.search(body)) or (weak and weak.search(body))
-    ]
+    spans: dict[str, list[tuple[int, int]]] = {}
+    for skill, strong, weak in _PATTERNS:
+        found = [m.span() for pat in (strong, weak) if pat for m in pat.finditer(body)]
+        if found:
+            spans[skill.name] = found
+    keep = []
+    for skill, _, _ in _PATTERNS:
+        mine = spans.get(skill.name)
+        if not mine:
+            continue
+        others = [sp for name, sps in spans.items() if name != skill.name for sp in sps]
+        standalone = [
+            (a, b) for a, b in mine if not any(oa <= a and b <= ob and (ob - oa) > (b - a) for oa, ob in others)
+        ]
+        if standalone:
+            keep.append(skill.name)
+    return keep

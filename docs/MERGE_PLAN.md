@@ -48,7 +48,7 @@ tool can reproduce a specific vendor's ATS (Workday, Greenhouse, Lever...); the 
 | 1 | `Profile` model, JSON import/export, legacy adapter, skills taxonomy, **submission-readiness gate** | ✅ |
 | 2 | AI layer: `google-genai` + Groq cascade, retry/backoff, validated output, grounding checker, injection-safe extraction | ✅ (rewrite/tailor prompts + rewrite-mode grounding land with their features in Phase 4) |
 | 3 | Ingestion: PDF/DOCX/TXT/paste/LinkedIn (PDF + data export)/GitHub; SSRF-safe URL fetch; extension fixes; review logic | ✅ (the Streamlit review-and-edit *form* is built with the UI in Phase 6; its logic, `careerforge/review.py`, is done) |
-| 4 | Feature port (matrix below) | ⬜ |
+| 4 | Feature port (matrix below) | 🔄 ATS v2 + ATS-only mode + multi-JD comparison done; tailor/cover letter/interview/jobs/outreach/roadmap/analytics/tracker pending |
 | 5 | CV + portfolio upgrade: Jinja2 templates, PDF/DOCX/HTML export, ATS-safe variants, 3 portfolio themes | ⬜ |
 | 6 | UI/UX: multipage, wizard, lazy tabs, mobile, a11y | ⬜ |
 | 7 | Test hardening: Playwright e2e, visual regression, axe, security matrix, coverage gate | ⬜ |
@@ -123,6 +123,22 @@ Tests marked `xfail(strict=True)` in `tests/` flip to passing when fixed. Remove
 * Run `python -m careerforge.ai.doctor` with your keys: it prints what works for YOU right now and the settings to pin.
 * The provider docs could not be fetched from the build sandbox, and third-party summaries disagreed, so no free-tier
   claim from them was relied on.
+
+## ATS v2 notes (Phase 4, first slice)
+* `careerforge/ats/`: `jd` (posting -> weighted requirements, sections/cues/years/degree), `match` (evidence-based
+  coverage, experience years from real dates, role alignment, skill implication), `checks` (structure, content
+  quality, PDF readability on the real file), `report` (components + fixes + `compare`), `semantic` (optional LLM).
+* Score = weighted components, renormalised over those that could be assessed: keywords 40, experience 10, role 10,
+  structure 15, PDF readability 10, content quality 15. **Weights are design choices, not fitted to any real ATS or to
+  hiring outcomes**; every report carries that disclaimer. With no posting it is a "quality" score, never a fake match.
+* Anti-gaming: a keyword shown in a bullet counts 100%, only in Skills 70% (50% if the list is > 25 skills), summary
+  only 60%; related skills count at 85% (Flask -> Python) and only in that direction.
+* The LLM never produces or changes a number. `possible_matches` only suggests, and each suggestion must quote the CV
+  verbatim for a requirement we reported missing, else it is dropped (and counted).
+* Fix wording is deliberately conditional ("if you have real experience... if not, do not claim it").
+* Known limits: borderless layout tables are caught only indirectly (reading-order check); the PDF check uses
+  pdfplumber's linear extraction as a proxy for "a simple ATS"; JD parsing is rule-based and can miss unusual postings
+  (paste more text or add sections); tested on generated documents and 3 sample postings, not on a real corpus.
 
 ## Open unknowns (verify, do not assume)
 - LinkedIn data-export CSV column names/format: implemented from memory without a real export (tolerant parser).

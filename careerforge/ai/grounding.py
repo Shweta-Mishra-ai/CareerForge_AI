@@ -15,38 +15,18 @@ employer, number, date or skill will not pass.
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
 from careerforge import skills as taxonomy
 from careerforge.models import Profile
+from careerforge.nlp import STOP, normalize, stem
 from careerforge.text import clean_text
 
 _LEGAL = frozenset(
     {"pvt", "ltd", "limited", "inc", "llc", "llp", "corp", "corporation", "co", "plc", "gmbh", "private"}
 )
-_STOP = frozenset(
-    """a an and are as at be been by for from has have in into is it its of on or that the their this to was were
-    with using used use via per over under across within while about also more most than then which who whom will
-    our your you they them his her him she he we i my me""".split()
-)
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
-
-
-def _norm(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text or "")
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    text = unicodedata.normalize("NFKC", text).casefold()
-    text = re.sub(r"(\w)-\s*\n\s*(\w)", r"\1\2", text)  # re-join words hyphenated across PDF line breaks
-    return re.sub(r"[^0-9a-z]+", " ", text).strip()
-
-
-def _stem(tok: str) -> str:
-    for suffix in ("ing", "ed", "es", "s"):
-        if len(tok) > 4 and tok.endswith(suffix):
-            return tok[: -len(suffix)]
-    return tok
 
 
 def _digits(text: str) -> str:
@@ -54,7 +34,7 @@ def _digits(text: str) -> str:
 
 
 def _squash(text: str) -> str:
-    return re.sub(r"[^0-9a-z]", "", _norm(text))
+    return re.sub(r"[^0-9a-z]", "", normalize(text))
 
 
 def _numbers(text: str) -> set[str]:
@@ -66,9 +46,9 @@ class Source:
 
     def __init__(self, text: str):
         self.raw = text or ""
-        self.norm = _norm(self.raw)
+        self.norm = normalize(self.raw)
         self.words = set(self.norm.split())
-        self.stems = {_stem(w) for w in self.words}
+        self.stems = {stem(w) for w in self.words}
         self.squashed = re.sub(r"[^0-9a-z]", "", self.norm)
         self.digits = _digits(self.raw)
         self.numbers = _numbers(self.raw)
@@ -77,7 +57,7 @@ class Source:
 
     def phrase(self, phrase: str, min_ratio: float = 1.0) -> bool:
         """Fraction of the phrase's significant words that occur in the source (order-insensitive)."""
-        toks = [t for t in _norm(phrase).split() if t not in _LEGAL]
+        toks = [t for t in normalize(phrase).split() if t not in _LEGAL]
         if not toks:
             return True
         if " ".join(toks) in self.norm:
@@ -86,10 +66,10 @@ class Source:
 
     def coverage(self, text: str) -> float:
         """Share of a sentence's content words (light-stemmed) found in the source."""
-        toks = [t for t in _norm(text).split() if len(t) >= 3 and t not in _STOP and not t.isdigit()]
+        toks = [t for t in normalize(text).split() if len(t) >= 3 and t not in STOP and not t.isdigit()]
         if not toks:
             return 1.0
-        return sum(_stem(t) in self.stems or t in self.words for t in toks) / len(toks)
+        return sum(stem(t) in self.stems or t in self.words for t in toks) / len(toks)
 
     def numbers_ok(self, text: str) -> bool:
         return _numbers(text) <= self.numbers

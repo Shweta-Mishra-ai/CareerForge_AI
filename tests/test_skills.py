@@ -81,3 +81,49 @@ class TestCanonical:
             for key in (s.name, *s.aliases):
                 key = key.lower()
                 assert seen.setdefault(key, s.name) == s.name, f"{key!r} maps to {seen[key]} and {s.name}"
+
+
+class TestAmbiguousWordsJoinedByAndOr:
+    @pytest.mark.parametrize(
+        "text,present",
+        [
+            ("skilled in SQL, Tableau or Power BI, Python (Pandas), Excel and stakeholder communication", "Excel"),
+            ("Tools: Tableau, Python and Excel, plus SQL", "Excel"),
+            ("Languages: Python, Go and Rust", "Go"),
+            ("Backend: Node.js, Express and MongoDB", "Express.js"),
+        ],
+    )
+    def test_found(self, text, present):
+        assert present in skills.find_skills(text)
+
+    @pytest.mark.parametrize(
+        "text,absent",
+        [
+            ("Excel and stakeholder management are important", "Excel"),  # sentence start: no explicit delimiter
+            ("Spring and summer internships", "Spring"),
+            ("We excel in delivery, and we love it", "Excel"),  # lower-case verb
+            ("Thanks, go and tell them", "Go"),  # lower-case 'go'
+            ("Open to Spring or Fall cohorts", "Spring"),
+            ("He will express, and then excel, over time", "Express.js"),
+        ],
+    )
+    def test_not_found(self, text, absent):
+        assert absent not in skills.find_skills(text)
+
+
+class TestImplication:
+    def test_one_direction_only(self):
+        assert skills.implied_by("Python", {"Flask"}) == "Flask"
+        assert skills.implied_by("Flask", {"Python"}) is None
+
+    def test_a_skill_never_implies_itself(self):
+        assert skills.implied_by("Python", {"Python"}) is None
+        assert skills.implied_by("SQL", {"SQL", "Excel"}) is None
+
+    def test_unknown_and_empty(self):
+        assert skills.implied_by("Python", set()) is None and skills.implied_by("Nope", {"Flask"}) is None
+
+    def test_every_implied_target_is_a_known_skill(self):
+        for source, targets in skills.IMPLIES.items():
+            assert source in skills.KNOWN_NAMES, source
+            assert all(t in skills.KNOWN_NAMES and t != source for t in targets), (source, targets)
