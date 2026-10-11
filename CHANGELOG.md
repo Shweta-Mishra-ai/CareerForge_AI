@@ -27,7 +27,7 @@ sure we are. No tool can promise that a recruiter, hiring manager or ATS accepts
 * **HR outreach**: replies for the other moments of a search (referral request, recruiter reply, interview confirmation,
   offer acknowledgement, withdrawing, reply to a rejection, message after a LinkedIn accept); an e-mail lint; the
   `First_Last_CV.pdf` attachment name; a LinkedIn Boolean people-search string. Notes now stay under 200 characters.
-* **Job search**: company boards from a pasted Greenhouse or Lever careers-page link; RemoteOK and Arbeitnow feeds;
+* **Job search**: company boards from a pasted Greenhouse or Lever careers-page link; The Muse (the free source the old CareerBoost app had), RemoteOK and Arbeitnow feeds;
   remote / seniority / employment normalised; filters; a multi-part score with a visible breakdown (skills 50%, role 20%,
   seniority 10%, freshness 10%, location 10%); warnings for common job-scam patterns; saved searches and "new since
   last search"; source, contact and next action on tracked applications.

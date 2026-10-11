@@ -471,3 +471,85 @@ class TestRedFlags:
         assert all(
             "genuine" not in f.lower() and "safe" not in f.lower() for f in self.flags("gift card wire transfer")
         )
+
+
+MUSE = {
+    "page": 1, "page_count": 2,
+    "results": [
+        {"name": "Senior Backend Engineer", "company": {"name": "Acme"}, "locations": [{"name": "Flexible / Remote"}],
+         "levels": [{"name": "Senior Level", "short_name": "senior"}], "categories": [{"name": "Software Engineering"}],
+         "contents": "<p>Python and Kafka services.</p><script>x()</script>", "publication_date": "2026-10-05T10:00:00Z",
+         "refs": {"landing_page": "https://www.themuse.com/jobs/acme/1"}},
+        {"name": "Pastry Chef", "company": {"name": "Bakery"}, "locations": [{"name": "Paris, France"}],
+         "levels": [{"name": "Entry Level"}], "categories": [], "contents": "Bake bread.",
+         "refs": {"landing_page": "https://www.themuse.com/jobs/bakery/2"}},
+        {"company": {"name": "No title"}}, "junk",
+    ],
+}  # fmt: skip
+
+
+class TestMuse:
+    def test_maps_filters_and_cleans(self, api):  # noqa: F811
+        a = api({"/api/public/jobs": (200, MUSE)})
+        jobs = J.MuseProvider(base_url=a.url).search("backend python", 10)
+        assert [j.title for j in jobs] == ["Senior Backend Engineer", "Senior Backend Engineer"]  # both pages are read
+        j = jobs[0]
+        assert (j.company, j.location, j.seniority, j.posted, j.source, j.remote) == (
+            "Acme", "Flexible / Remote", "senior", "2026-10-05", "The Muse", True,
+        )  # fmt: skip
+        assert j.tags == ("software engineering",) and "x()" not in j.description and "Kafka" in j.description
+        assert j.url == "https://www.themuse.com/jobs/acme/1"
+
+    def test_it_sends_no_empty_api_key_and_walks_pages_from_one(self, api):  # noqa: F811
+        a = api({"/api/public/jobs": (200, MUSE)})
+        J.MuseProvider(base_url=a.url).search("backend", 10)
+        assert [("api_key" in p, f"page={n}" in p) for n, p in enumerate(a.seen, start=1)] == [
+            (False, True),
+            (False, True),
+        ]
+
+    def test_it_stops_at_the_last_page_and_at_the_limit(self, api):  # noqa: F811
+        a = api({"/api/public/jobs": (200, {**MUSE, "page_count": 1})})
+        J.MuseProvider(base_url=a.url).search("backend", 10)
+        assert len(a.seen) == 1
+        b = api({"/api/public/jobs": (200, MUSE)})
+        assert len(J.MuseProvider(base_url=b.url).search("backend", 1)) == 1 and len(b.seen) == 1
+
+    def test_at_most_three_pages_are_read(self, api):  # noqa: F811
+        a = api({"/api/public/jobs": (200, {**MUSE, "page_count": 50})})
+        J.MuseProvider(base_url=a.url).search("backend", 100)
+        assert len(a.seen) == 3
+
+    @pytest.mark.parametrize(
+        "level,expected",
+        [
+            ("Internship", "intern"),
+            ("Entry Level", "junior"),
+            ("Mid Level", "mid"),
+            ("Senior Level", "senior"),
+            ("management", ""),
+        ],
+    )
+    def test_levels_become_seniority_only_when_recognised(self, api, level, expected):  # noqa: F811
+        row = {
+            "results": [
+                {"name": "Dev", "levels": [{"name": level}], "refs": {"landing_page": "https://www.themuse.com/j/1"}}
+            ],
+            "page_count": 1,
+        }
+        (j,) = J.MuseProvider(base_url=api({"/api/public/jobs": (200, row)}).url).search("dev", 5)
+        assert j.seniority == expected
+
+    def test_a_job_without_a_landing_page_is_dropped_by_the_search(self):
+        class Raw:
+            name = "The Muse"
+
+            def search(self, q, n):
+                return [Job("Dev", "c", "", "", "", "The Muse")]
+
+        assert search_all([Raw()], "dev").jobs == ()
+
+    @pytest.mark.parametrize("body", [b"<html>", b"[1]", b'{"results": "x"}'])
+    def test_bad_responses_are_provider_errors(self, api, body):  # noqa: F811
+        with pytest.raises(ProviderError):
+            J.MuseProvider(base_url=api({"/api/public/jobs": (200, body)}).url).search("x", 5)

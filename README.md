@@ -135,8 +135,8 @@ keys (not part of CI).
 
 * The score approximates how ATS software reads a CV. It cannot predict a specific employer's system.
 * Scanned (image-only) PDFs cannot be read. LinkedIn profile *links* cannot be read; use its PDF or data export.
-* The LinkedIn data-export reader and the live job-board APIs (Remotive, Jobicy, Adzuna, RemoteOK, Arbeitnow,
-  Greenhouse, Lever) were built from documentation and have not been checked against real exports or recorded
+* The LinkedIn data-export reader and the live job-board APIs (Remotive, Jobicy, The Muse, Adzuna, RemoteOK,
+  Arbeitnow, Greenhouse, Lever) were built from documentation and have not been checked against real exports or recorded
   responses. Failures are reported per source rather than hidden.
 * Job-search scores use weights we chose (shown on every card); they are not fitted to hiring outcomes. A posting with
   no scam warning is not proof that it is genuine.

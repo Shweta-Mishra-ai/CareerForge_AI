@@ -219,7 +219,7 @@ site files. Browser-tested with axe (light and dark) and Lighthouse.
 ## Still unverified (cannot be checked from the build environment)
 * A real Streamlit Cloud deployment (system packages, fonts, Python version selection): see docs/DEPLOY.md.
 * Live Gemini/Groq behaviour and current free model names: run `python -m careerforge.ai.doctor` with real keys.
-* Live job-board APIs (Remotive, Jobicy, Adzuna, RemoteOK, Arbeitnow, Greenhouse, Lever) and a real LinkedIn data export.
+* Live job-board APIs (Remotive, Jobicy, The Muse, Adzuna, RemoteOK, Arbeitnow, Greenhouse, Lever) and a real LinkedIn data export.
 * LinkedIn's current connection-note limit and Boolean search; whether any given ATS or hiring manager accepts the output.
 * The Chrome extension against today's LinkedIn markup.
 * DOCX in Microsoft Word; non-Latin fonts on Streamlit Cloud.

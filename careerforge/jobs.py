@@ -357,6 +357,62 @@ class ArbeitnowProvider(_Base):
         return jobs
 
 
+class MuseProvider(_Base):
+    """The Muse's public job feed, as the old CareerBoost app used it (no key sent). The feed has no keyword search, so
+    the newest few pages are fetched and filtered here: a niche query can therefore find few postings."""
+
+    name = "The Muse"
+    PAGES = 3
+    _LEVELS = {"internship": "intern", "entry level": "junior", "mid level": "mid", "senior level": "senior"}
+
+    def __init__(self, *, base_url: str = "https://www.themuse.com", **kw):
+        super().__init__(base_url=base_url, **kw)
+
+    def search(self, query: str, limit: int) -> list[Job]:
+        jobs: list[Job] = []
+        for page in range(1, self.PAGES + 1):
+            params = {"page": page, "descending": "true"}
+            data = _get_json(
+                self.session,
+                f"{self.base_url}/api/public/jobs",
+                params,
+                self.timeout,
+                self.name,
+                max_bytes=BOARD_MAX_BYTES,
+            )
+            for r in _rows(data, "results", self.name):
+                if not isinstance(r, dict) or not _str(r.get("name")):
+                    continue
+                company = r.get("company") if isinstance(r.get("company"), dict) else {}
+                places = [x for x in (r.get("locations") or []) if isinstance(x, dict)]
+                cats = [x for x in (r.get("categories") or []) if isinstance(x, dict)]
+                levels = [x for x in (r.get("levels") or []) if isinstance(x, dict)]
+                refs = r.get("refs") if isinstance(r.get("refs"), dict) else {}
+                level = next(
+                    (self._LEVELS[n] for x in levels if (n := _str(x.get("name")).lower()) in self._LEVELS), ""
+                )
+                place = _str(places[0].get("name")) if places else ""
+                job = Job(
+                    title=_str(r.get("name")),
+                    company=_str(company.get("name")),
+                    location=place,
+                    description=_text(r.get("contents")),
+                    url=_url(refs.get("landing_page")),
+                    source=self.name,
+                    posted=_day(r.get("publication_date")),
+                    tags=tuple(_str(c.get("name"), 40).lower() for c in cats)[:8],
+                    seniority=level,
+                    remote=True if "flexible" in place.lower() or "remote" in place.lower() else None,
+                )
+                if _relevant(query, job):
+                    jobs.append(job)
+                if len(jobs) == limit:
+                    return jobs
+            if page >= (data.get("page_count") if isinstance(data.get("page_count"), int) else 0):
+                break
+        return jobs
+
+
 class RemoteOkProvider(_Base):
     """RemoteOK's public feed. Its terms ask you to link to the posting and name RemoteOK as the source: every Job
     keeps its own `url` and `source`. The first element of the feed is a legal notice, not a job."""

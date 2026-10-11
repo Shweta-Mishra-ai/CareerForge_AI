@@ -13,6 +13,7 @@ from careerforge.jobs import (
     AdzunaProvider,
     ArbeitnowProvider,
     JobicyProvider,
+    MuseProvider,
     Preferences,
     RankedJob,
     RemoteOkProvider,
@@ -33,7 +34,7 @@ from careerforge.ui.text import md_escape
 VIEWS = ("Find jobs", "Application tracker")
 RESULTS = "job_results"
 FOLLOW_UP_LABELS = {"follow_up_1": "first follow-up", "follow_up_2": "second follow-up", "close_out": "close out"}
-FEEDS = ("Remotive", "Jobicy", "RemoteOK", "Arbeitnow")
+FEEDS = ("Remotive", "Jobicy", "The Muse", "RemoteOK", "Arbeitnow")
 POSTED = {"Any time": None, "Last 7 days": 7, "Last 14 days": 14, "Last 30 days": 30}
 
 
@@ -43,6 +44,8 @@ def _providers(chosen: list[str]) -> list:
         out.append(RemotiveProvider())
     if "Jobicy" in chosen:
         out.append(JobicyProvider())
+    if "The Muse" in chosen:
+        out.append(MuseProvider())
     if "RemoteOK" in chosen:
         out.append(RemoteOkProvider())
     if "Arbeitnow" in chosen:

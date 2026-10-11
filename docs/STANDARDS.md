@@ -64,7 +64,8 @@ withdrawing, replying to a rejection) use only your CV and what you type. Anythi
 
 | Rule | Basis | Tag |
 |---|---|---|
-| Sources: Remotive, Jobicy, RemoteOK, Arbeitnow (public feeds), Adzuna (needs your free keys), and any company's own Greenhouse or Lever board from its careers-page link | Each service's public documentation | **Unverified**: the build environment could not reach these services, so every parser is tested only against hand-written look-alike responses. Failures are reported per source, never hidden |
+| Sources: Remotive, Jobicy, The Muse, RemoteOK, Arbeitnow (public feeds), Adzuna (needs your free keys), and any company's own Greenhouse or Lever board from its careers-page link | Each service's public documentation | **Unverified**: the build environment could not reach these services, so every parser is tested only against hand-written look-alike responses. Failures are reported per source, never hidden |
+| The Muse has no keyword search, so the newest 3 pages (about 60 postings) are read and filtered here; a niche query can find few postings. Its page numbering and level names (used for seniority) come from the old CareerBoost code and memory | **Unverified** |
 | Credit the source and link back (Remotive, RemoteOK) | Their terms ask for it; every card shows its source and the original link | Standard (their terms) |
 | Career-page links are accepted only for the two services' real hosts | Prevents a pasted link from making the app contact an arbitrary server | Design choice |
 | Score = skills 50%, role 20%, seniority 10%, freshness 10%, location 10%; parts that cannot be measured are dropped and the rest re-weighted | Shown on every card ("How this score was calculated"). Skills and role use the same engine as the ATS check | **Design choice**. The weights are not fitted to hiring outcomes |
