@@ -9,10 +9,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from careerforge.ai import models as model_mod
-from careerforge.ai.client import Clock, RetryPolicy, build_client
+from careerforge.ai.client import AIClient, Clock, RetryPolicy, Route, build_client
 from careerforge.ai.doctor import main as doctor_main
 from careerforge.ai.doctor import run as doctor_run
-from careerforge.ai.errors import AIAuthError, AIQuotaExhausted, AIRateLimited
+from careerforge.ai.errors import AIAuthError, AIExhausted, AIQuotaExhausted, AIRateLimited
 from careerforge.ai.models import discover, rank_gemini, rank_groq
 from careerforge.ai.providers import GeminiProvider, GroqProvider, Request
 from careerforge.ai.settings import AISettings, load_settings
@@ -173,7 +173,7 @@ class TestDiscoveryAndBuildClient:
         return AISettings(gemini_api_key="KEY-GEM-123456" if g else "", groq_api_key="KEY-GROQ-123456" if q else "",
                           gemini_base_url=g.url if g else None, groq_base_url=q.url if q else None, timeout_s=3, **kw)  # fmt: skip
 
-    def test_routes_come_from_discovery_best_first_capped_at_three(self, api):
+    def test_routes_come_from_discovery_best_first_capped_at_five_per_provider(self, api):
         g = api(
             {
                 ("GET", "/v1beta/models"): gem_models(
@@ -189,8 +189,10 @@ class TestDiscoveryAndBuildClient:
             {"id": "llama-3.1-8b-instant", "object": "model", "created": 1, "owned_by": "x", "active": True, "context_window": 131072},
             {"id": "llama-3.3-70b-versatile", "object": "model", "created": 1, "owned_by": "x", "active": True, "context_window": 131072}]})})  # fmt: skip
         client = build_client(self.settings(g, q))
-        assert [str(r) for r in client.routes] == ["gemini/gemini-3-flash", "gemini/gemini-2.5-flash", "gemini/gemini-2.5-flash-lite",
-                                                   "groq/llama-3.3-70b-versatile", "groq/llama-3.1-8b-instant"]  # fmt: skip
+        assert [str(r) for r in client.routes] == [
+            "gemini/gemini-3-flash", "gemini/gemini-2.5-flash", "gemini/gemini-2.5-flash-lite", "gemini/gemini-2.5-pro",
+            "gemini/gemini-3-flash-preview", "groq/llama-3.3-70b-versatile", "groq/llama-3.1-8b-instant",
+        ]  # fmt: skip
         assert client.notes == []
 
     def test_user_pinned_models_skip_discovery_entirely(self, api):
@@ -326,3 +328,76 @@ def test_discovery_does_not_block_startup_for_long(api):
     d = discover(GeminiProvider("KEY-GEM-123456", base_url="http://127.0.0.1:9", timeout_s=2), None)
     assert time.monotonic() - start < 5 and d.gemini == () and "Could not list" in d.notes[0]
     assert RetryPolicy().deadline_s >= 30  # unrelated sanity: cascade deadline is a separate bound
+
+
+class TestRemembersDeadRoutes:
+    """A model that is gone or out of quota is skipped for a while, so each request does not first fail on it."""
+
+    def client(self, *replies, now=None):
+        from helpers import ScriptedProvider
+
+        provider = ScriptedProvider(*replies)
+        t = now or [0.0]
+        clock = Clock(sleep=lambda s: None, monotonic=lambda: t[0], uniform=lambda a, b: 0.0)
+        routes = [Route(provider, "gone"), Route(provider, "ok")]
+        return AIClient(routes, RetryPolicy(), clock), provider, t
+
+    REQ = Request(system="s", user="u")
+
+    def test_a_missing_model_is_not_asked_again_for_an_hour(self):
+        from careerforge.ai.errors import AIModelNotFound
+
+        client, provider, t = self.client(AIModelNotFound("no such model"), "a", "b", "c", "d")
+        assert client.complete(self.REQ).model == "ok" and len(provider.requests) == 2
+        assert client.complete(self.REQ).model == "ok" and len(provider.requests) == 3  # the gone one was skipped
+        t[0] = 3599
+        assert client.complete(self.REQ).model == "ok" and len(provider.requests) == 4
+        t[0] = 3601  # the hour is over: it is tried again (and answers this time)
+        assert client.complete(self.REQ).model == "gone"
+
+    def test_a_model_out_of_quota_is_skipped_for_ten_minutes(self):
+        from careerforge.ai.errors import AIQuotaExhausted
+
+        client, provider, t = self.client(AIQuotaExhausted("daily"), "a", "b", "c")
+        client.complete(self.REQ)
+        t[0] = 599
+        client.complete(self.REQ)
+        assert len(provider.requests) == 3
+        t[0] = 601
+        assert client.complete(self.REQ).model == "gone"
+
+    def test_when_every_route_is_marked_dead_they_are_tried_again_not_refused(self):
+        from careerforge.ai.errors import AIModelNotFound
+
+        client, provider, _ = self.client(AIModelNotFound("x"), AIModelNotFound("y"), "fine")
+        with pytest.raises(AIExhausted):
+            client.complete(self.REQ)
+        assert client.complete(self.REQ).text == "fine"
+
+    def test_a_retryable_failure_is_not_remembered(self):
+        from careerforge.ai.errors import AIUnavailable
+
+        client, provider, _ = self.client(*([AIUnavailable("busy")] * 3), "a", "b")
+        client.complete(self.REQ)
+        assert client.skip_until == {}
+
+
+class TestCheckRoutes:
+    def test_every_route_is_probed_and_reported_with_its_reason(self):
+        from helpers import ScriptedProvider
+
+        from careerforge.ai.doctor import check_routes
+        from careerforge.ai.errors import AIModelNotFound
+
+        provider = ScriptedProvider('{"ok": true}', AIModelNotFound("gone KEY-SECRET-1234"), "not json")
+        clock = Clock(sleep=lambda s: None, monotonic=lambda: 0.0, uniform=lambda a, b: 0.0)
+        client = AIClient(
+            [Route(provider, "a"), Route(provider, "b"), Route(provider, "c")],
+            RetryPolicy(),
+            clock,
+            ("KEY-SECRET-1234",),
+        )
+        checks = check_routes(client)
+        assert [(c.route, c.ok) for c in checks] == [("fake/a", True), ("fake/b", False), ("fake/c", False)]
+        assert "KEY-SECRET-1234" not in " ".join(c.detail for c in checks)  # keys never reach the screen
+        assert all(c.seconds >= 0 for c in checks)

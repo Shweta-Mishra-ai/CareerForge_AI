@@ -649,3 +649,27 @@ class TestPdfEngineUnavailable:
     def test_the_engine_loads_again_once_it_is_available(self):
         cv._pdf_engine.cache_clear()
         assert cv.render_cv_pdf(experienced()).data[:5] == b"%PDF-"
+
+
+class TestContactLines:
+    """The header contact is two deliberate lines, so a wrapped line can never end in a dangling separator."""
+
+    @pytest.mark.parametrize("template", ["ats-classic", "ats-modern", "executive"])
+    def test_reach_me_and_find_me_online_are_separate_lines(self, template):
+        s = BeautifulSoup(cv.render_cv_html(experienced(), RenderOptions(template=template)), "html.parser")
+        lines = [[li.get_text(strip=True) for li in ul.select("li")] for ul in s.select("header .contact")]
+        assert lines == [
+            ["priya.nair@gmail.com", "+91 98765 43210", "Bengaluru, India"],
+            ["linkedin.com/in/priya-nair-demo", "github.com/priya-demo"],
+        ]
+
+    def test_a_single_group_stays_one_line(self):
+        only_direct = experienced().model_copy(
+            update={"contact": Contact(email="a.b@gmail.com", phone="+91 98765 43210")}
+        )
+        s = BeautifulSoup(cv.render_cv_html(only_direct, RenderOptions()), "html.parser")
+        assert len(s.select("header .contact")) == 1
+
+    def test_text_extraction_order_is_unchanged(self):
+        out = cv.render_cv_pdf(experienced(), RenderOptions(template="ats-modern"))
+        assert out.parse.score == 100

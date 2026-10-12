@@ -64,7 +64,7 @@ Either one is enough. Put them in `.streamlit/secrets.toml` (copy `.streamlit/se
 variables, or paste them into **Settings** in the app (kept for that browser session only, never written anywhere).
 
 Free model names change often, so the app **discovers** which models your key can use at runtime. To check what works
-right now with *your* keys and get paste-ready settings:
+right now with *your* keys (also in the app: **Settings → Check every model now**) and get paste-ready settings:
 
 ```bash
 python -m careerforge.ai.doctor

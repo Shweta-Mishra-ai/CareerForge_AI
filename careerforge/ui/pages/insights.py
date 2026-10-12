@@ -6,10 +6,11 @@ import pandas as pd
 import streamlit as st
 
 from careerforge.analytics import keyword_heat, skill_radar, timeline
-from careerforge.roadmap import build_roadmap
+from careerforge.roadmap import build_roadmap, roadmap_markdown
 from careerforge.ui import state
 from careerforge.ui.pages.match import job_input, report_for
 from careerforge.ui.text import md_escape
+from careerforge.ui.widgets import download
 
 VIEWS = ("Career timeline", "Skill coverage", "Keyword heat", "Learning roadmap")
 
@@ -93,6 +94,14 @@ def render() -> None:
                 for step in item.steps:
                     st.markdown(f"1. {md_escape(step)}")
                 st.markdown(f"**Project idea:** {md_escape(item.project)}")
+        if items:
+            download(
+                "Download the roadmap (.md)",
+                roadmap_markdown(items),
+                "learning_roadmap.md",
+                "text/markdown",
+                key="dl-roadmap",
+            )
         st.caption(
             "Estimates are rough and assume part-time study. Only add a skill to your CV once you have really used it."
         )

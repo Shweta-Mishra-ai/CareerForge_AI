@@ -264,3 +264,25 @@ class TestPortfolioTab:
         )
         html = self.page(p).get("iframe")[0].proto.srcdoc
         assert 'class="case"' in html and "Case study" in html
+
+
+class TestOldAppParity:
+    """Features the old CareerBoost app had that the merged app must also have."""
+
+    def test_the_posting_upload_box_exists_on_every_page_that_takes_a_posting(self):
+        for name in ("match", "tailor", "insights", "write"):
+            at = new_app(experienced()).run()
+            open_page(at, name)
+            labels = [e.label for e in at.expander]
+            assert "Or upload the posting (PDF, Word or text file)" in labels, name
+
+    def test_roadmap_markdown_is_a_checklist_of_the_roadmaps_own_fields(self):
+        from careerforge.ats.report import analyze
+        from careerforge.roadmap import build_roadmap, roadmap_markdown
+
+        p = experienced()
+        items = build_roadmap(analyze(p, "Dev\nRequirements: Terraform, gRPC, Rust", today=TODAY), p)
+        md = roadmap_markdown(items)
+        assert md.startswith("# Learning roadmap") and md.count("## ") == len(items) and "**Project idea:**" in md
+        assert "1. " in md and md.rstrip().endswith("really used it.")
+        assert roadmap_markdown([]).startswith("# Learning roadmap")

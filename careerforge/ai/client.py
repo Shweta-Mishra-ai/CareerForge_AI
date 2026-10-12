@@ -36,6 +36,10 @@ from careerforge.ai.settings import FALLBACK_GEMINI_MODELS, FALLBACK_GROQ_MODELS
 T = TypeVar("T")
 
 
+MODEL_GONE_SKIP_S = 3600.0
+QUOTA_SKIP_S = 600.0
+
+
 @dataclass(frozen=True)
 class RetryPolicy:
     attempts_per_route: int = 3
@@ -71,6 +75,9 @@ class AIClient:
     secrets: tuple[str, ...] = ()
     max_tokens_cap: int = 16384
     notes: list[str] = field(default_factory=list)  # human-readable remarks, e.g. how models were chosen
+    # route -> time until which it is skipped. A model that does not exist is skipped for an hour and one that is out
+    # of quota for ten minutes, so every request does not first waste a round trip on a route that cannot answer.
+    skip_until: dict[str, float] = field(default_factory=dict)
 
     def _msg(self, exc: Exception) -> str:
         return redact(f"{type(exc).__name__}: {exc}", self.secrets)
@@ -90,7 +97,8 @@ class AIClient:
         def out_of_time() -> bool:
             return self.clock.monotonic() - start >= self.policy.deadline_s
 
-        for route in self.routes:
+        usable = [r for r in self.routes if self.skip_until.get(str(r), 0.0) <= start]
+        for route in usable or self.routes:  # if everything is marked dead, try again rather than refuse outright
             if route.provider.name in dead:
                 continue
             for attempt in range(1, self.policy.attempts_per_route + 1):
@@ -106,6 +114,10 @@ class AIClient:
                     break
                 except (AIModelNotFound, AIQuotaExhausted, AIBadRequest) as exc:
                     record(route, exc)
+                    if isinstance(exc, AIModelNotFound):
+                        self.skip_until[str(route)] = start + MODEL_GONE_SKIP_S
+                    elif isinstance(exc, AIQuotaExhausted):
+                        self.skip_until[str(route)] = start + QUOTA_SKIP_S
                     break
                 except AIError as exc:  # retryable
                     record(route, exc)

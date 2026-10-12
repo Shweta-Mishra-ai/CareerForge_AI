@@ -115,6 +115,20 @@ def _show_job(profile, ranked: RankedJob, i: int, *, new: bool) -> None:
             st.toast("Added to your tracker.", icon=":material/check_circle:")
 
 
+def _load_search(tracker, search_id: str) -> None:
+    found = next((x for x in tracker.saved_searches if x.id == search_id), None)
+    if found is None:
+        return
+    st.session_state.update(
+        {
+            "job-query": found.query,
+            "job-location": found.location,
+            "job-remote": found.remote_only,
+            "job-boards-text": "\n".join(found.boards),
+        }
+    )
+
+
 def _saved_searches() -> None:
     tracker = state.tracker()
     if not tracker.saved_searches:
@@ -122,17 +136,9 @@ def _saved_searches() -> None:
     labels = {s.id: s.query + (f" ({s.location})" if s.location else "") for s in tracker.saved_searches}
     c1, c2, c3 = st.columns([3, 1, 1])
     pick = c1.selectbox("Saved searches", list(labels), format_func=labels.get, key="job-saved-pick")
-    if c2.button("Load", key="job-saved-load"):
-        found = next(s for s in tracker.saved_searches if s.id == pick)
-        st.session_state.update(
-            {
-                "job-query": found.query,
-                "job-location": found.location,
-                "job-remote": found.remote_only,
-                "job-boards-text": "\n".join(found.boards),
-            }
-        )
-        st.rerun()
+    # A callback runs before the boxes are drawn, which is the only moment their values can be set reliably (setting
+    # them and calling st.rerun() left the old text showing in the browser).
+    c2.button("Load", key="job-saved-load", on_click=_load_search, args=(tracker, pick))
     if c3.button("Delete", key="job-saved-del"):
         state.set_tracker(tracker.remove_search(pick))
         st.rerun()
@@ -143,6 +149,8 @@ def _find(profile) -> None:
         "Searches public job boards and the careers pages of companies you choose. Results are ranked by "
         "how well your CV matches each posting."
     )
+    if message := st.session_state.pop("job-flash", None):
+        st.toast(message, icon=":material/check_circle:")
     _saved_searches()
     suggestions = suggest_queries(profile.exportable())
     query = st.text_input("Search", value=suggestions[0] if suggestions else "", key="job-query")
@@ -188,7 +196,8 @@ def _find(profile) -> None:
             st.error(str(exc), icon=":material/error:")
         else:
             state.set_tracker(tracker)
-            st.toast("Search saved in your profile file.", icon=":material/check_circle:")
+            st.session_state["job-flash"] = "Search saved in your profile file."
+            st.rerun()  # the "Saved searches" list is drawn above this button, so it needs a fresh run to show it
     stored = st.session_state.get(RESULTS)
     if not stored:
         return
@@ -328,7 +337,10 @@ def render() -> None:
     profile = state.require_profile()
     st.title("Jobs & tracker")
     view = st.radio("View", VIEWS, horizontal=True, key="jobs-view")
-    _find(profile) if view == "Find jobs" else _tracker(profile)
+    if view == "Find jobs":
+        _find(profile)
+    else:
+        _tracker(profile)
 
 
 if __name__ == "__main__":

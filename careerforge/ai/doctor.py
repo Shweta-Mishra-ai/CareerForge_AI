@@ -13,10 +13,11 @@ import sys
 import time
 import tomllib
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
-from careerforge.ai.client import parse_json_object
+from careerforge.ai.client import AIClient, parse_json_object
 from careerforge.ai.errors import AIError, redact
 from careerforge.ai.models import rank_gemini, rank_groq
 from careerforge.ai.providers import GeminiProvider, GroqProvider, Provider, Request
@@ -33,6 +34,23 @@ def _probe(provider: Provider, model: str, secrets: tuple[str, ...]) -> tuple[bo
         return ok, "answered" if ok else "answered, but not with the expected JSON", time.monotonic() - start
     except (AIError, ValueError) as exc:
         return False, redact(f"{type(exc).__name__}: {exc}", secrets), time.monotonic() - start
+
+
+@dataclass(frozen=True)
+class RouteCheck:
+    route: str
+    ok: bool
+    detail: str
+    seconds: float
+
+
+def check_routes(client: AIClient) -> list[RouteCheck]:
+    """Send one tiny request to every route of a client, so the user sees which model names answer right now."""
+    out = []
+    for route in client.routes:
+        ok, detail, secs = _probe(route.provider, route.model, client.secrets)
+        out.append(RouteCheck(str(route), ok, detail, secs))
+    return out
 
 
 def _targets(settings: AISettings) -> list[tuple[str, Provider, Callable[[Provider], list[str]]]]:
@@ -95,7 +113,7 @@ def _secrets_from_file(path: Path) -> dict[str, object]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check which AI models work with your API keys.")
     parser.add_argument("--secrets", type=Path, default=Path(".streamlit/secrets.toml"))
-    parser.add_argument("--top", type=int, default=3, help="how many top-ranked models per provider to test")
+    parser.add_argument("--top", type=int, default=5, help="how many top-ranked models per provider to test")
     args = parser.parse_args(argv)
     return run(load_settings(_secrets_from_file(args.secrets), os.environ), top=args.top)
 

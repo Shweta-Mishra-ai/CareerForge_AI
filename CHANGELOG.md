@@ -36,6 +36,15 @@ sure we are. No tool can promise that a recruiter, hiring manager or ATS accepts
   a no-index option, an inline icon, richer `schema.org` data. Lighthouse (local): Performance, Accessibility and Best
   Practices 100; SEO 92, which is 100 once the page's own security policy is lifted for the audit (see STANDARDS.md).
 
+### Real-browser review, load test and parity with the old app
+* Boxes that looked blank (job posting after a file/link load, saved-search load) and a stray `None` on the Jobs page:
+  fixed with real-browser tests. Measurements and what they do not prove: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+* CV header contact is two deliberate lines (no dangling separator when it wraps).
+* From the old CareerBoost app: a job posting can be uploaded as PDF, Word or text; the learning roadmap downloads as
+  Markdown.
+* AI: models that do not exist or are out of quota are skipped for a while instead of being retried on every request;
+  up to 5 candidates per provider; Settings has "Check every model now" showing which model names answer for your keys.
+
 ### Found while building it
 * Letter recipient names were validated with a pattern that rejected 60-character names its own length cap allowed.
 * The ATS matcher counts a project's tech list as "listed", not "applied", so projects without the skill in a bullet

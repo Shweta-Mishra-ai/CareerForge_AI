@@ -593,6 +593,23 @@ class TestSettings:
         at.run()
         assert "rejected the api key" in at.error[0].value.lower()
 
+    def test_every_model_can_be_checked_and_the_reason_is_shown_for_the_ones_that_fail(self, ui_env):
+        from careerforge.ai.errors import AIModelNotFound
+
+        client, _ = scripted_client('{"ok": true}')
+        ui_env.ai(client)
+        at = open_page(new_app().run(), "settings")
+        button(at, "Check every model now").click()
+        at.run()
+        assert not at.exception and "answered" in texts(at) and "fake/m" in " ".join(m.value for m in at.markdown)
+        assert "names change often" in texts(at)
+        bad, _ = scripted_client(AIModelNotFound("model gone"))
+        ui_env.ai(bad)
+        at = open_page(new_app().run(), "settings")
+        button(at, "Check every model now").click()
+        at.run()
+        assert any("No model answered" in e.value for e in at.error) and "model gone" in texts(at)
+
     def test_models_in_use_are_listed(self, ui_env):
         ui_env.ai(scripted_client()[0])
         at = open_page(new_app().run(), "settings")

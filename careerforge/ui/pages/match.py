@@ -11,6 +11,8 @@ from careerforge.analytics import section_tips
 from careerforge.ats.jd import parse_job_description
 from careerforge.ats.report import AtsReport, analyze, compare
 from careerforge.ats.semantic import possible_matches
+from careerforge.ingest.errors import IngestError, UnsupportedFormat
+from careerforge.ingest.files import read_document
 from careerforge.ingest.web import fetch_job_text
 from careerforge.models import Profile
 from careerforge.ui import state
@@ -20,6 +22,7 @@ from careerforge.ui.widgets import ats_report_view
 
 VIEWS = ("Score", "Section tips", "Compare postings", "Smart matches (AI)")
 MAX_JOB_CHARS = 30_000
+SYNC = "job-input-sync"
 
 
 def job_input() -> str:
@@ -27,6 +30,12 @@ def job_input() -> str:
 
     def store() -> None:
         state.set_job(st.session_state["job-input"][:MAX_JOB_CHARS])
+
+    # A widget's value can only be assigned BEFORE it is created in a run. After an upload or a fetch the new text is
+    # applied here, at the top of the next run; popping the key after the box existed left the box blank in the browser
+    # while the app already held the text (the "blank box" bug).
+    if st.session_state.pop(SYNC, False):
+        st.session_state["job-input"] = state.job_text()
 
     st.text_area(
         "Job posting (paste the full text)",
@@ -37,6 +46,23 @@ def job_input() -> str:
         on_change=store,
         help="Leave empty for a general ATS-readiness check of your CV.",
     )
+    with st.expander("Or upload the posting (PDF, Word or text file)"):
+        posting = st.file_uploader("Job posting file", type=["pdf", "docx", "txt"], key="job-file")
+        if posting is not None:
+            data = posting.getvalue()
+            digest = hashlib.sha256(data).hexdigest()
+            if st.session_state.get("job-file-done") != digest:  # read each file once, not on every rerun
+                try:
+                    doc = read_document(posting.name, data)
+                    if doc.kind not in ("pdf", "docx", "txt"):
+                        raise UnsupportedFormat("That file is not a job posting")
+                except IngestError as exc:
+                    st.error(explain(exc), icon=":material/error:")
+                else:
+                    st.session_state["job-file-done"] = digest
+                    state.set_job(doc.text[:MAX_JOB_CHARS])
+                    st.session_state[SYNC] = True
+                    st.rerun()
     with st.expander("Or fetch it from a link"):
         url = st.text_input("Job posting link (https://...)", key="job-url")
         if st.button("Fetch", key="job-fetch"):
@@ -44,7 +70,7 @@ def job_input() -> str:
                 with st.spinner("Fetching..."):
                     text = fetch_job_text(url)
                 state.set_job(text[:MAX_JOB_CHARS])
-                st.session_state.pop("job-input", None)
+                st.session_state[SYNC] = True
                 st.rerun()
             except Exception as exc:  # noqa: BLE001
                 st.error(explain(exc), icon=":material/error:")

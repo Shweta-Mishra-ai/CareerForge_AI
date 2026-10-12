@@ -38,6 +38,10 @@
 <header class="head">
   <h1>{{ p.name }}</h1>
   {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
-  {% if contact %}{{ contact_list(contact) }}{% endif %}
+  {# two deliberate lines (reach me / find me online) so a wrapped line never ends in a dangling separator #}
+  {% set direct = contact | selectattr("kind", "in", ["email", "phone", "location"]) | list %}
+  {% set online = contact | rejectattr("kind", "in", ["email", "phone", "location"]) | list %}
+  {% if direct %}{{ contact_list(direct) }}{% endif %}
+  {% if online %}{{ contact_list(online) }}{% endif %}
 </header>
 {%- endmacro %}

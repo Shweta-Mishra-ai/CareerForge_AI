@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from careerforge.ai.errors import AIError
 
-TOP_N = 3  # routes kept per provider: bounds worst-case cascade time
+TOP_N = 5  # routes kept per provider; unusable ones are remembered and skipped, so a longer list is cheap
 CACHE_TTL_S = 3600.0
 
 # ── Gemini ──────────────────────────────────────────────────────────────────

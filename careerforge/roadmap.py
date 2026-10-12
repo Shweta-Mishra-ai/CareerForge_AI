@@ -70,3 +70,20 @@ def build_roadmap(report: AtsReport, profile: Profile, *, limit: int = 8) -> lis
             )
         )
     return items
+
+
+def roadmap_markdown(items: list[RoadmapItem]) -> str:
+    """The roadmap as a Markdown checklist the user can keep (plain text, nothing but the roadmap's own fields)."""
+    lines = ["# Learning roadmap", ""]
+    for item in items:
+        low, high = item.weeks
+        lines += [f"## {item.skill} ({item.priority}): about {low}-{high} weeks", ""]
+        if item.builds_on:
+            lines += [f"Builds on what you already know: {item.builds_on}", ""]
+        lines += [f"{n}. {step}" for n, step in enumerate(item.steps, 1)]
+        lines += ["", f"**Project idea:** {item.project}", ""]
+    lines += [
+        "Estimates are rough and assume part-time study. Only add a skill to your CV once you have really used it.",
+        "",
+    ]
+    return "\n".join(lines)

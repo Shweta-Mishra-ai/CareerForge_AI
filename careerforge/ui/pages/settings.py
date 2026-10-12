@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import streamlit as st
 
+from careerforge.ai.doctor import check_routes
 from careerforge.ai.providers import Request
 from careerforge.ui import state
 from careerforge.ui.errors import explain
+from careerforge.ui.text import md_escape
 
 
 def render() -> None:
@@ -53,6 +55,30 @@ def render() -> None:
             st.error(explain(exc), icon=":material/error:")
         else:
             st.success(f"Working. Answered by {done.provider} / {done.model}.", icon=":material/check_circle:")
+    if st.button(
+        "Check every model now", key="ai-models-check", help="One tiny request per model; counts as one AI action."
+    ):
+        try:
+            client = state.charge_ai()
+            with st.spinner("Asking each model..."):
+                checks = check_routes(client)
+        except Exception as exc:  # noqa: BLE001
+            st.error(explain(exc), icon=":material/error:")
+        else:
+            working = [c for c in checks if c.ok]
+            for c in checks:
+                mark = ":material/check_circle:" if c.ok else ":material/cancel:"
+                st.markdown(f"{mark} `{c.route}`: {'answered' if c.ok else md_escape(c.detail)} ({c.seconds:.1f}s)")
+            if not working:
+                st.error(
+                    "No model answered. Check the key, the account's plan and region, and the reasons above.",
+                    icon=":material/error:",
+                )
+            else:
+                st.caption(
+                    "Names change often. If the list above has old ones, nothing needs fixing: the app asks each "
+                    "provider for its current models and skips the ones that fail."
+                )
     try:
         client = state.ai_client()
     except Exception as exc:  # noqa: BLE001

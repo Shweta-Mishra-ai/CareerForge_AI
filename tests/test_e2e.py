@@ -89,6 +89,63 @@ def test_portfolio_v2_options_reach_the_downloaded_site(session):
     s.assert_clean()
 
 
+def test_a_job_posting_can_be_uploaded_as_pdf_word_or_text(session, tmp_path):
+    """The old CareerBoost app took the posting as an uploaded PDF; so must this one."""
+    import docx
+    from weasyprint import HTML
+
+    s, page = session, session.page
+    s.load_cv()
+    s.go("ATS check")
+    posting = "Senior Backend Engineer\nRequirements: Python, Kafka, Redis, Terraform and Kubernetes experience."
+    txt = tmp_path / "posting.txt"
+    txt.write_text(posting, encoding="utf-8")
+    word = tmp_path / "posting.docx"
+    d = docx.Document()
+    d.add_paragraph(posting.replace("Python", "Rust"))
+    d.save(word)
+    pdf = tmp_path / "posting.pdf"
+    HTML(string=f"<p>{posting.replace('Python', 'Elixir')}</p>").write_pdf(pdf)
+    page.get_by_text("Or upload the posting (PDF, Word or text file)").click()
+    for path, term in ((txt, "Python"), (word, "Rust"), (pdf, "Elixir")):
+        page.locator("input[type=file]").first.set_input_files(str(path))
+        expect(page.get_by_role("textbox", name="Job posting (paste the full text)")).to_have_value(
+            re.compile(term), timeout=30000
+        )
+    expect(page.get_by_text("ATS match score")).to_be_visible(timeout=30000)
+    # a scanned/empty or wrong kind of file is a sentence, not a crash
+    junk = tmp_path / "junk.txt"
+    junk.write_text("hi", encoding="utf-8")
+    page.locator("input[type=file]").first.set_input_files(str(junk))
+    expect(page.get_by_text("not enough text").first).to_be_visible(timeout=30000)
+    s.assert_clean()
+
+
+def test_a_saved_search_refills_the_boxes_in_the_browser(session):
+    """Boxes must show what the app holds: the same 'looks blank but the app has the value' trap as the upload."""
+    s, page = session, session.page
+    s.load_cv()
+    s.go("Jobs & tracker")
+    query = page.get_by_role("textbox", name="Search", exact=True)
+    where = page.get_by_role("textbox", name="Where (optional)")
+    query.fill("data engineer")
+    query.blur()
+    where.fill("Pune")
+    where.blur()
+    page.wait_for_timeout(500)
+    s.click("Save this search")
+    expect(page.get_by_text("Saved searches")).to_be_visible(timeout=30000)
+    query.fill("something else")
+    query.blur()
+    where.fill("")
+    where.blur()
+    page.wait_for_timeout(500)
+    page.get_by_role("button", name="Load", exact=True).click()
+    expect(query).to_have_value("data engineer", timeout=30000)
+    expect(where).to_have_value("Pune")
+    s.assert_clean()
+
+
 def test_save_load_round_trip_restores_everything(session, browser, server, tmp_path):
     s, page = session, session.page
     s.load_cv()
