@@ -12,7 +12,7 @@ from careerforge.readiness import NotReady
 from careerforge.render.cv import PdfEngineUnavailable, PdfExport, preview_html, render_cv_html, render_cv_pdf
 from careerforge.render.docx_export import render_cv_docx
 from careerforge.render.options import DEFAULT_ACCENT, SECTION_TITLES, SECTIONS, TEMPLATES, RenderOptions
-from careerforge.render.portfolio import PortfolioOptions, blockers, build_portfolio
+from careerforge.render.portfolio import LAYOUTS, PortfolioOptions, blockers, build_portfolio
 from careerforge.render.text_export import render_cv_txt
 from careerforge.render.themes import THEMES
 from careerforge.ui import state
@@ -196,8 +196,20 @@ def _portfolio_cv(profile: Profile) -> bytes | None:
 
 def _portfolio_tab(profile: Profile) -> None:
     st.write("A one-file website you can host for free. No scripts, no trackers, works offline.")
+    layout = st.radio(
+        "Layout",
+        list(LAYOUTS),
+        format_func=lambda k: f"{LAYOUTS[k][0]}: {LAYOUTS[k][1]}",
+        key="pf-layout",
+    )
     c1, c2 = st.columns(2)
-    theme = c1.radio("Theme", list(THEMES), format_func=lambda k: THEMES[k].label, key="pf-theme")
+    theme = c1.radio(
+        "Colours",
+        list(THEMES),
+        index=list(THEMES).index("light"),
+        format_func=lambda k: THEMES[k].label,
+        key="pf-theme",
+    )
     is_auto = theme == "auto"
     use_accent = c2.checkbox("Use my own accent colour", key="pf-use-accent", disabled=is_auto)
     if is_auto:
@@ -208,6 +220,7 @@ def _portfolio_tab(profile: Profile) -> None:
     with st.expander("What to show"):
         show_email = st.checkbox("Show my email address", value=True, key="pf-email")
         show_phone = st.checkbox("Show my phone number (invites spam; off by default)", value=False, key="pf-phone")
+        show_location = st.checkbox("Show my city (it is public once you publish)", value=False, key="pf-location")
         show_stats = st.checkbox(
             "Show summary figures (years, projects, stars: computed from your profile)", value=True, key="pf-stats"
         )
@@ -240,6 +253,8 @@ def _portfolio_tab(profile: Profile) -> None:
             show_email=show_email,
             show_phone=show_phone,
             show_stats=show_stats,
+            layout=layout,
+            show_location=show_location,
             hidden=frozenset(hide),
             custom_domain=custom_domain,
             noindex=noindex,
@@ -275,7 +290,22 @@ def _portfolio_tab(profile: Profile) -> None:
         )
     with d2:
         download("Download index.html only", built.html, "index.html", "text/html", key="dl-pf-html")
+    host1, host2, host3 = st.columns(3)
+    host1.link_button(
+        "Publish on Netlify (drag the unzipped folder)", "https://app.netlify.com/drop", icon=":material/open_in_new:"
+    )
+    host2.link_button(
+        "GitHub Pages guide",
+        "https://docs.github.com/pages/getting-started-with-github-pages",
+        icon=":material/open_in_new:",
+    )
+    host3.link_button(
+        "Cloudflare Pages guide", "https://developers.cloudflare.com/pages/", icon=":material/open_in_new:"
+    )
     st.caption(
+        "Nothing is hosted for you and nothing is stored: download the site and put it on a free host yourself, "
+        "or send the single `index.html` file to anyone (it opens in any browser, offline). To try another look "
+        "later, save your profile (sidebar) and load it again: the same data builds every layout. "
         "The page is public once you publish it. Read it once and hide anything you do not want strangers to see. "
         "Mark your best projects as featured case studies in **Review & edit**."
     )

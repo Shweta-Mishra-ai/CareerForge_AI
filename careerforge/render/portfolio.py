@@ -12,6 +12,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Literal
 from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
@@ -28,6 +29,20 @@ from careerforge.render.view import build_blocks, contact_items, meta_descriptio
 from careerforge.text import normalize_url
 
 _HOSTNAME = re.compile(r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}")
+LAYOUTS: dict[str, tuple[str, str]] = {
+    "profile": (
+        "Profile",
+        "A profile card stays beside your work as the visitor scrolls. The most familiar portfolio look.",
+    ),
+    "hero": (
+        "Hero",
+        "A big introduction at the top, then your work in a wide centred column. Feels like a landing page.",
+    ),
+    "editorial": (
+        "Editorial",
+        "Serif typography with section labels in the margin. Calm and print-like; suits writing-heavy CVs.",
+    ),
+}
 PORTFOLIO_SECTIONS = ("about", "projects", "experience", "skills", "education", "certifications", "languages")
 _TITLES = {
     "about": "About",
@@ -52,6 +67,8 @@ class PortfolioOptions(BaseModel):
     show_stats: bool = True
     hidden: frozenset[str] = frozenset()
     lang: str = "en"
+    layout: Literal["profile", "hero", "editorial"] = "profile"
+    show_location: bool = False  # a city on a public page is a privacy choice, so it is opt-in
     custom_domain: str = ""  # e.g. "jane.dev": writes the CNAME file GitHub Pages uses and sets the site address
     noindex: bool = False  # ask search engines not to list the page (robots.txt and a meta tag)
     include_cv: bool = False  # add the CV PDF to the download and link to it from the top of the page
@@ -151,11 +168,31 @@ def _stats(p: Profile, today: date) -> list[Stat]:
     return stats
 
 
-def _favicon(name: str, theme) -> str:
-    """A data: URI for a round SVG icon with the person's initials (no image file, no request)."""
+_PAIRABLE = ("education", "certifications", "languages")
+
+
+def _rows(sections: list[str], *, pair: bool) -> list[list[str]]:
+    """Section rows. Short sections that sit next to each other (education, certifications, languages) share a row of
+    two, so the page has no half-empty bands; everything else is a row of its own."""
+    rows: list[list[str]] = []
+    for name in sections:
+        if pair and name in _PAIRABLE and rows and rows[-1][0] in _PAIRABLE and len(rows[-1]) == 1:
+            rows[-1].append(name)
+        else:
+            rows.append([name])
+    return rows
+
+
+def _initials(name: str) -> str:
+    """First letters of the first and last name ("PN"); one letter for a single name; a dot if there is no letter."""
     words = [w for w in re.split(r"\s+", name.strip()) if any(c.isalpha() for c in w)]
     letters = [next(c for c in w if c.isalpha()).upper() for w in (words[:1] + words[-1:] if len(words) > 1 else words)]
-    initials = "".join(letters) or "•"
+    return "".join(letters) or "•"
+
+
+def _favicon(name: str, theme) -> str:
+    """A data: URI for a round SVG icon with the person's initials (no image file, no request)."""
+    initials = _initials(name)
     svg = (
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
         f"<circle cx='32' cy='32' r='32' fill='{theme.accent}'/>"
@@ -250,7 +287,7 @@ def build_portfolio(
     sameas = [c.href for c in contact if c.kind in ("linkedin", "github", "website")]
     html = (
         _env()
-        .get_template("portfolio.html.j2")
+        .get_template(f"portfolio_{options.layout}.html.j2")
         .render(
             p=p,
             theme=theme,
@@ -260,6 +297,7 @@ def build_portfolio(
             csp=CSP,
             blocks=blocks,
             sections=sections,
+            rows=_rows(sections, pair=options.layout != "editorial"),
             titles=_TITLES,
             cv_name=_CV_NAME,
             contact=contact,
@@ -267,6 +305,9 @@ def build_portfolio(
             sameas=sameas,
             person=_structured_data(p, description, site_url, sameas),
             favicon=_favicon(p.name, theme),
+            initials=_initials(p.name),
+            where=p.contact.location if options.show_location else "",
+            mail=next((c for c in contact if c.kind == "email"), None),
             cv_link=cv_link,
             featured=[pr for pr in p.projects if pr.featured],
             others=[pr for pr in p.projects if not pr.featured],

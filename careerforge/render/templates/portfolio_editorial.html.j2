@@ -1,0 +1,43 @@
+{% extends "portfolio_base.html.j2" %}
+{% import "_pf.html.j2" as pf with context %}
+{% block layout_css %}
+body { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', Times, serif; font-size: 1.125rem; }
+h1, h2, h3, .when, .badge, .button, .meta, nav, .stats span, .chips li, .skillgroup h3, h3.sub { font-family: var(--font); }
+.wrap { width: min(100% - 2.5rem, 62rem); margin-inline: auto; }
+header.masthead { padding: 4.5rem 0 2.2rem; border-bottom: 3px double var(--border); }
+header.masthead h1 { font-size: clamp(2.6rem, 7vw, 4.6rem); line-height: 1; letter-spacing: -0.035em; font-weight: 800; }
+header.masthead .headline { font-size: clamp(1.2rem, 2.8vw, 1.7rem); font-style: italic; color: var(--muted); margin-top: 0.7rem; }
+header.masthead .where { color: var(--muted); margin-top: 0.3rem; font-family: var(--font); font-size: 0.95rem; }
+header.masthead .actions { margin-top: 1.5rem; }
+header.masthead .stats { margin-top: 1.8rem; }
+header.masthead nav { margin-top: 1.6rem; }
+.sec { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem 2.5rem; margin-top: 0; padding: 2.4rem 0; border-bottom: 1px solid var(--border); }
+.sec > h2 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0.4rem 0 0; position: sticky; top: 1.25rem; align-self: start; }
+.sec > h2::before { display: none; }
+.sec > :not(h2) { grid-column: 2; }
+.lead { font-size: 1.35rem; line-height: 1.6; }
+.card, .case { box-shadow: none; border-radius: 0.4rem; background: transparent; }
+.case { border-left-width: 4px; }
+.timeline { border-left: 0; margin-left: 0; }
+.timeline > li { padding: 0 0 1.6rem 0; }
+.timeline > li::before { display: none; }
+.job-head h3 { font-size: 1.2rem; }
+.chips li { border-radius: 0.3rem; }
+footer { margin-top: 2rem; }
+@media (max-width: 46rem) { .sec { grid-template-columns: 1fr; padding: 1.8rem 0; } .sec > :not(h2) { grid-column: 1; } .sec > h2 { position: static; margin-bottom: 0; } header.masthead { padding-top: 2.5rem; } }
+{% endblock %}
+{% block page %}
+<header class="masthead"><div class="wrap">
+<h1>{{ p.name }}</h1>
+{% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
+{% if where %}<p class="where">{{ where }}</p>{% endif %}
+<div class="actions">{{ pf.buttons() }}</div>
+{{ pf.stat_list() }}
+{{ pf.nav() }}
+</div></header>
+<main id="main" class="wrap">
+{{ pf.body() }}
+{{ pf.contact_section() }}
+</main>
+<footer><div class="wrap"><p>{{ p.name }} &middot; Last updated {{ today }}</p></div></footer>
+{% endblock %}

@@ -126,7 +126,7 @@ class TestProjects:
 class TestCv:
     def test_the_cv_is_linked_and_shipped_when_asked(self):
         r = make(cv=PDF, include_cv=True)
-        link = soup(r.html).select_one("a.button")
+        link = soup(r.html).select_one("a[download]")
         assert link["href"] == "Priya_Nair_CV.pdf" and link.has_attr("download")
         assert r.files()["Priya_Nair_CV.pdf"] == PDF
         with zipfile.ZipFile(io.BytesIO(r.zip_bytes())) as z:
@@ -134,11 +134,11 @@ class TestCv:
 
     def test_no_link_and_no_file_unless_asked(self):
         r = make(cv=PDF)
-        assert not soup(r.html).select("a.button") and "Priya_Nair_CV.pdf" not in r.files()
+        assert not soup(r.html).select("a[download]") and "Priya_Nair_CV.pdf" not in r.files()
 
     def test_asking_without_a_pdf_warns_and_never_leaves_a_dead_link(self):
         r = make(include_cv=True)
-        assert not soup(r.html).select("a.button") and any("CV PDF could not be made" in w for w in r.warnings)
+        assert not soup(r.html).select("a[download]") and any("CV PDF could not be made" in w for w in r.warnings)
 
     def test_the_readme_mentions_the_cv_file(self):
         assert "Priya_Nair_CV.pdf" in make(cv=PDF, include_cv=True).readme

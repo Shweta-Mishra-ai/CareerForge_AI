@@ -146,6 +146,31 @@ def test_a_saved_search_refills_the_boxes_in_the_browser(session):
     s.assert_clean()
 
 
+def test_each_portfolio_layout_downloads_as_a_working_site(session, browser):
+    """Pick a layout in the real UI, download the zip, open the downloaded index.html in a browser."""
+    import tempfile
+
+    s, page = session, session.page
+    s.load_cv()
+    s.go("CV & portfolio")
+    s.choose("Portfolio website")
+    for label, marker in (("Hero", "hero"), ("Editorial", "masthead"), ("Profile", "profile")):
+        page.get_by_text(re.compile(rf"^{label}: ")).first.click()
+        expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
+        page.wait_for_timeout(1500)
+        z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
+        html = z.read("index.html").decode()
+        assert f'class="{marker}"' in html, label
+        with tempfile.TemporaryDirectory() as tmp:
+            z.extractall(tmp)
+            site = browser.new_page()
+            site.goto(f"file://{tmp}/index.html")
+            expect(site.get_by_role("heading", name="Priya Nair", level=1)).to_be_visible()
+            assert site.evaluate("document.documentElement.scrollWidth") <= site.evaluate("innerWidth")
+            site.close()
+    s.assert_clean()
+
+
 def test_save_load_round_trip_restores_everything(session, browser, server, tmp_path):
     s, page = session, session.page
     s.load_cv()

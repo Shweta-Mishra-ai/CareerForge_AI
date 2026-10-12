@@ -2,7 +2,6 @@
 
 from datetime import date
 
-import pytest
 from test_grounding import faithful_standard
 from test_jobs import _clean_cache, api  # noqa: F401
 from test_render_portfolio import full_profile
@@ -21,6 +20,7 @@ from careerforge.jobs import (
     suggest_queries,
 )
 from careerforge.models import Education, Experience, Profile, Project
+from careerforge.render.options import contrast_ratio
 from careerforge.render.portfolio import PortfolioOptions, build_portfolio
 
 TODAY = date(2026, 10, 10)
@@ -203,19 +203,25 @@ class TestThemeBoundaries:
         assert with_accent(THEMES["dark"], "#7dd3fc").accent_text == "#000000"
 
     def test_an_accent_just_under_the_threshold_is_refused_and_just_over_is_accepted(self):
-        from careerforge.render.options import contrast_ratio
+        from dataclasses import replace
+
         from careerforge.render.themes import MIN_CONTRAST, THEMES, with_accent
 
-        bg = THEMES["light"].surface  # the darker of the two backgrounds a link is drawn on
-        ratios = {}
+        ok, bad = [], []
         for grey in range(0x40, 0xA0):
             colour = f"#{grey:02x}{grey:02x}{grey:02x}"
-            ratios[colour] = contrast_ratio(colour, bg)
-        ok = [c for c, r in ratios.items() if r >= MIN_CONTRAST]
-        bad = [c for c, r in ratios.items() if r < MIN_CONTRAST]
-        assert ok and bad
-        edge_ok = min(ok, key=lambda c: ratios[c])
-        edge_bad = max(bad, key=lambda c: ratios[c])
-        assert with_accent(THEMES["light"], edge_ok).accent == edge_ok
-        with pytest.raises(ValueError):
-            with_accent(THEMES["light"], edge_bad)
+            try:
+                accepted = with_accent(THEMES["light"], colour)
+            except ValueError:
+                bad.append(colour)
+                continue
+            ok.append(colour)
+            assert accepted.worst_contrast() >= MIN_CONTRAST
+        assert ok and bad and max(ok) < min(bad)  # one clean boundary: darker is accepted, lighter is refused
+        for colour in (max(ok), min(bad)):  # the two colours either side of the line behave as the numbers say
+            candidate = replace(THEMES["light"], accent=colour)
+            on = "#ffffff"
+            candidate = replace(candidate, accent_text=on)
+            pairs = [(fg, bg) for fg, bg, _ in candidate.text_pairs() if colour in (fg, bg) or "tint" in _]
+            worst = min(contrast_ratio(fg, bg) for fg, bg in pairs)
+            assert (worst >= MIN_CONTRAST) is (colour in ok)

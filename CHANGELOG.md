@@ -36,6 +36,15 @@ sure we are. No tool can promise that a recruiter, hiring manager or ATS accepts
   a no-index option, an inline icon, richer `schema.org` data. Lighthouse (local): Performance, Accessibility and Best
   Practices 100; SEO 92, which is 100 once the page's own security policy is lifted for the audit (see STANDARDS.md).
 
+### Portfolio redesign
+* Three layouts to choose from: **Profile** (a profile card stays beside your work), **Hero** (landing-page style) and
+  **Editorial** (serif, labels in the margin), each in light, dark, automatic and minimal colours. Initials avatar,
+  skill chips, a dated timeline, case-study cards, short sections paired in rows, a Download CV / Email button.
+  Your city is shown only if you tick a box. Same content in every layout (tested), axe clean in light and dark,
+  Lighthouse Performance/Accessibility/Best Practices 100 for all three.
+* The portfolio tab links to free hosts (Netlify Drop, GitHub Pages, Cloudflare Pages). Nothing is hosted for you:
+  you download the zip, or send the single `index.html`.
+
 ### Real-browser review, load test and parity with the old app
 * Boxes that looked blank (job posting after a file/link load, saved-search load) and a stray `None` on the Jobs page:
   fixed with real-browser tests. Measurements and what they do not prove: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).

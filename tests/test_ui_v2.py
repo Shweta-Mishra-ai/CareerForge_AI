@@ -286,3 +286,35 @@ class TestOldAppParity:
         assert md.startswith("# Learning roadmap") and md.count("## ") == len(items) and "**Project idea:**" in md
         assert "1. " in md and md.rstrip().endswith("really used it.")
         assert roadmap_markdown([]).startswith("# Learning roadmap")
+
+
+class TestPortfolioLayouts:
+    def page(self):
+        at = new_app(experienced()).run()
+        open_page(at, "export")
+        at.radio(key="export-tab").set_value("Portfolio website").run()
+        return at
+
+    def test_each_layout_can_be_chosen_and_changes_the_preview(self):
+        at = self.page()
+        assert 'class="profile"' in at.get("iframe")[0].proto.srcdoc
+        for layout, marker in (
+            ("hero", 'class="hero"'),
+            ("editorial", 'class="masthead"'),
+            ("profile", 'class="profile"'),
+        ):
+            at.radio(key="pf-layout").set_value(layout).run()
+            html = at.get("iframe")[0].proto.srcdoc
+            assert not at.exception and marker in html and "Priya Nair" in html, layout
+
+    def test_the_city_is_hidden_until_asked(self):
+        at = self.page()
+        assert "Bengaluru" not in at.get("iframe")[0].proto.srcdoc
+        at.checkbox(key="pf-location").set_value(True).run()
+        assert "Bengaluru" in at.get("iframe")[0].proto.srcdoc
+
+    def test_hosting_is_explained_and_links_are_offered(self):
+        at = self.page()
+        urls = [b.proto.url for b in at.get("link_button")]
+        assert "https://app.netlify.com/drop" in urls and len(urls) == 3
+        assert "nothing is hosted for you" in texts(at)

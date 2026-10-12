@@ -13,6 +13,19 @@ SERIF = Markup("Georgia, 'Times New Roman', Times, serif")
 MIN_CONTRAST = 4.5  # WCAG AA for normal-size text
 
 
+def mix(top: str, base: str, share: float) -> str:
+    """`share` of colour `top` laid over `base`, as #rrggbb (what CSS color-mix would give, but computed here so the
+    contrast of text on the tinted areas can be tested like every other pair)."""
+    out = []
+    for i in (1, 3, 5):
+        a, b = int(top[i : i + 2], 16), int(base[i : i + 2], 16)
+        out.append(round(a * share + b * (1 - share)))
+    return "#" + "".join(f"{v:02x}" for v in out)
+
+
+TINT_SHARE = 0.10  # how much accent colour the tinted bands and chips carry
+
+
 @dataclass(frozen=True)
 class Theme:
     key: str
@@ -28,6 +41,16 @@ class Theme:
     color_scheme: str  # "dark" | "light" | "light dark": tells the browser how to draw form controls and scrollbars
     dark: Theme | None = None  # palette used when the visitor's device prefers dark (the "auto" theme only)
 
+    @property
+    def tint(self) -> str:
+        """A faint accent wash over the page background: hero bands, chips, avatar rings."""
+        return mix(self.accent, self.bg, TINT_SHARE)
+
+    @property
+    def shadow(self) -> str:
+        strength = "0.35" if self.color_scheme == "dark" else "0.08"
+        return f"0 1px 2px rgba(0,0,0,{strength}), 0 10px 28px rgba(0,0,0,{strength})"
+
     def text_pairs(self) -> list[tuple[str, str, str]]:
         """Every (foreground, background, what) combination the stylesheet draws as text."""
         return [
@@ -38,6 +61,9 @@ class Theme:
             (self.accent, self.bg, "links on page"),
             (self.accent, self.surface, "links on cards"),
             (self.accent_text, self.accent, "text on accent"),
+            (self.text, self.tint, "text on tinted areas"),
+            (self.muted, self.tint, "muted text on tinted areas"),
+            (self.accent, self.tint, "links on tinted areas"),
         ]
 
     def worst_contrast(self) -> float:

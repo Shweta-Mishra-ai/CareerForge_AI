@@ -1,0 +1,42 @@
+{% extends "portfolio_base.html.j2" %}
+{% import "_pf.html.j2" as pf with context %}
+{% block layout_css %}
+.topbar { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--border); }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; }
+.topbar .brand { font-weight: 700; letter-spacing: -0.01em; }
+.topbar nav ul { gap: 0.1rem 1.1rem; }
+.wrap { width: min(100% - 2rem, 70rem); margin-inline: auto; }
+.hero { background: linear-gradient(160deg, var(--tint), var(--bg) 85%); border-bottom: 1px solid var(--border); padding: 4.5rem 0 3.5rem; }
+.hero .inner { display: flex; gap: 2.5rem; align-items: flex-start; }
+.hero .avatar { width: 8rem; height: 8rem; font-size: 2.8rem; margin-top: 0.4rem; }
+.hero h1 { font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1.05; letter-spacing: -0.03em; }
+.hero .headline { font-size: clamp(1.15rem, 2.6vw, 1.55rem); color: var(--muted); margin-top: 0.6rem; }
+.hero .where { color: var(--muted); margin-top: 0.3rem; }
+.hero .actions { margin-top: 1.6rem; }
+.hero .stats { margin-top: 2.2rem; }
+.hero .stats li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1.3rem; box-shadow: var(--shadow); }
+.sec-about .lead { font-size: 1.3rem; }
+.timeline > li { background: transparent; }
+.sec-projects .featured { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
+@media (max-width: 40rem) { .hero { padding: 2.5rem 0 2rem; } .hero .inner { flex-direction: column; align-items: flex-start; gap: 1.2rem; } .hero .avatar { width: 5.5rem; height: 5.5rem; font-size: 1.9rem; } .topbar nav { display: none; } }
+{% endblock %}
+{% block page %}
+<header class="topbar"><div class="wrap"><span class="brand">{{ p.name }}</span>{{ pf.nav() }}</div></header>
+<section class="hero" aria-label="Introduction">
+<div class="wrap inner">
+<div class="avatar" aria-hidden="true">{{ initials }}</div>
+<div>
+<h1>{{ p.name }}</h1>
+{% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
+{% if where %}<p class="where">{{ where }}</p>{% endif %}
+<div class="actions">{{ pf.buttons() }}</div>
+{{ pf.stat_list() }}
+</div>
+</div>
+</section>
+<main id="main" class="wrap">
+{{ pf.body() }}
+{{ pf.contact_section() }}
+</main>
+<footer><div class="wrap"><p>{{ p.name }} &middot; Last updated {{ today }}</p></div></footer>
+{% endblock %}

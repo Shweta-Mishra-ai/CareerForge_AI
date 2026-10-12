@@ -152,10 +152,11 @@ class TestMobile:
         expect(page.get_by_role("button", name=re.compile("Build my files"))).to_be_visible(timeout=30000)
         assert self.overflow(page) <= 1
 
+    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
     @pytest.mark.parametrize("theme", THEME_KEYS)
-    def test_generated_portfolio_is_responsive_at_320px(self, browser, theme, tmp_path):
+    def test_generated_portfolio_is_responsive_at_320px(self, browser, theme, layout, tmp_path):
         f = tmp_path / "index.html"
-        f.write_text(build(full_profile(), theme=theme), encoding="utf-8")
+        f.write_text(build(full_profile(), theme=theme, layout=layout), encoding="utf-8")
         page = browser.new_page(viewport={"width": 320, "height": 640})
         page.goto(f.as_uri())
         assert page.evaluate("document.documentElement.scrollWidth") <= 320
@@ -242,10 +243,11 @@ class TestAccessibility:
             found = violations(s.page)
             assert not found, f"{name}: {describe(found)}"
 
+    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
     @pytest.mark.parametrize("theme", THEME_KEYS)
-    def test_generated_portfolio_has_no_wcag_violations(self, browser, theme, tmp_path):
+    def test_generated_portfolio_has_no_wcag_violations(self, browser, theme, layout, tmp_path):
         f = tmp_path / "index.html"
-        f.write_text(build(full_profile(), theme=theme), encoding="utf-8")
+        f.write_text(build(full_profile(), theme=theme, layout=layout), encoding="utf-8")
         page = browser.new_page()
         page.goto(f.as_uri())
         results = Axe().run(
@@ -258,9 +260,10 @@ class TestAccessibility:
         page.close()
         assert not found, describe(found)
 
-    def test_the_automatic_portfolio_is_accessible_in_dark_mode_too(self, browser, tmp_path):
+    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
+    def test_the_automatic_portfolio_is_accessible_in_dark_mode_too(self, browser, layout, tmp_path):
         f = tmp_path / "index.html"
-        f.write_text(build(full_profile(), theme="auto"), encoding="utf-8")
+        f.write_text(build(full_profile(), theme="auto", layout=layout), encoding="utf-8")
         page = browser.new_page(color_scheme="dark")
         page.goto(f.as_uri())
         assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(15, 23, 42)"  # really dark
@@ -271,8 +274,9 @@ class TestAccessibility:
         page.close()
         assert not found, describe(found)
 
+    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
     @pytest.mark.parametrize("scheme", ["light", "dark"])
-    def test_portfolio_with_case_studies_cv_button_and_404_page_are_accessible(self, browser, tmp_path, scheme):
+    def test_portfolio_with_case_studies_cv_button_and_404_page_are_accessible(self, browser, tmp_path, scheme, layout):
         from datetime import date
 
         from test_portfolio_v2 import PDF
@@ -284,7 +288,9 @@ class TestAccessibility:
         p = p.model_copy(update={"projects": [Project(name="Big One", description="Flagship.", bullets=["Cut costs by 30%"], tech=["Go"], url="https://github.com/priya-demo/big", demo_url="https://big.example.com", featured=True), *p.projects]})  # fmt: skip
         built = build_portfolio(
             p,
-            PortfolioOptions(theme="auto", include_cv=True, custom_domain="jane.dev"),
+            PortfolioOptions(
+                theme="auto", layout=layout, include_cv=True, custom_domain="jane.dev", show_location=True
+            ),
             today=date(2026, 10, 10),
             cv_pdf=PDF,
         )

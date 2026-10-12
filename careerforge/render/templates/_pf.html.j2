@@ -1,0 +1,126 @@
+{# Shared building blocks for every portfolio layout. Imported "with context", so it sees p, blocks, titles... #}
+
+{% macro buttons(primary_first=true) -%}
+{% if cv_link %}<a class="button" href="{{ cv_link }}" download>Download my CV (PDF)</a>{% endif %}
+{% if mail %}<a class="button{{ ' ghost' if cv_link else '' }}" href="{{ mail.href }}">Email me</a>{% endif %}
+{%- endmacro %}
+
+{% macro nav(label="Sections") -%}
+{% if sections or contact %}
+<nav aria-label="{{ label }}">
+<ul>
+{% for s in sections %}<li><a href="#{{ s }}">{{ titles[s] }}</a></li>
+{% endfor %}
+{% if contact %}<li><a href="#contact">Contact</a></li>{% endif %}
+</ul>
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro stat_list() -%}
+{% if stats %}
+<ul class="stats" aria-label="Summary figures">
+{% for s in stats %}<li><strong>{{ s.value }}</strong><span>{{ s.label }}</span></li>
+{% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}
+
+{% macro contact_list() -%}
+<ul class="contact">
+{% for c in contact %}<li>{% if c.href %}<a href="{{ c.href }}">{{ c.text }}</a>{% else %}{{ c.text }}{% endif %}</li>
+{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro project_links(pr) -%}
+{% if pr.url or pr.demo_url %}<p class="links">{% if pr.url %}<a href="{{ pr.url }}">Source</a>{% endif %}{% if pr.url and pr.demo_url %} &middot; {% endif %}{% if pr.demo_url %}<a href="{{ pr.demo_url }}">Live demo</a>{% endif %}</p>{% endif %}
+{%- endmacro %}
+
+{% macro section(s) -%}
+<section id="{{ s }}" class="sec sec-{{ s }}" aria-labelledby="h-{{ s }}">
+<h2 id="h-{{ s }}">{{ titles[s] }}</h2>
+{% if s == "about" %}
+<p class="lead">{{ p.summary }}</p>
+{% elif s == "projects" %}
+{% if featured %}
+{% if others %}<h3 class="sub">Featured</h3>{% endif %}
+<ul class="featured">
+{% for pr in featured %}
+<li><article class="case">
+<p class="badge">Case study</p>
+<h3>{{ pr.name }}</h3>
+{% if pr.stars %}<p class="meta"><span aria-hidden="true">★</span> {{ pr.stars }} {{ "star" if pr.stars == 1 else "stars" }} on GitHub</p>{% endif %}
+{% if pr.description %}<p>{{ pr.description }}</p>{% endif %}
+{% if pr.bullets %}<ul class="points">{% for b in pr.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+{% if pr.tech %}<ul class="chips" aria-label="Technologies">{% for t in pr.tech %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+{{ project_links(pr) }}
+</article></li>
+{% endfor %}
+</ul>
+{% endif %}
+{% if others %}
+{% if featured %}<h3 class="sub">More projects</h3>{% endif %}
+<ul class="grid">
+{% for pr in others %}
+<li><article class="card">
+<h3>{% if pr.url %}<a href="{{ pr.url }}">{{ pr.name }}</a>{% else %}{{ pr.name }}{% endif %}</h3>
+{% if pr.stars %}<p class="meta"><span aria-hidden="true">★</span> {{ pr.stars }} {{ "star" if pr.stars == 1 else "stars" }} on GitHub</p>{% endif %}
+{% if pr.description %}<p>{{ pr.description }}</p>{% endif %}
+{% if pr.bullets %}<ul class="points">{% for b in pr.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+{% if pr.tech %}<ul class="chips" aria-label="Technologies">{% for t in pr.tech %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}
+{% if pr.demo_url %}<p class="links"><a href="{{ pr.demo_url }}">Live demo</a></p>{% endif %}
+</article></li>
+{% endfor %}
+</ul>
+{% endif %}
+{% elif s == "experience" %}
+<ol class="timeline">
+{% for e in blocks["experience"].entries %}
+<li>
+<div class="job-head"><h3>{{ e.head }}</h3>{% if e.when %}<span class="when">{{ e.when }}</span>{% endif %}</div>
+{% if e.sub %}<p class="meta">{{ e.sub }}</p>{% endif %}
+{% if e.bullets %}<ul>{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+</li>
+{% endfor %}
+</ol>
+{% elif s == "skills" %}
+<div class="skills">
+{% for label, names in blocks["skills"].skills %}
+<div class="skillgroup">
+{% if label %}<h3>{{ label }}</h3>{% endif %}
+<ul class="chips">{% for n in names.split(", ") %}<li>{{ n }}</li>{% endfor %}</ul>
+</div>
+{% endfor %}
+</div>
+{% elif s == "education" or s == "certifications" %}
+<ul class="grid">
+{% for e in blocks[s].entries %}
+<li class="card">
+<h3>{{ e.head }}</h3>
+<p class="meta">{{ [e.sub, e.when] | select | join(" · ") }}</p>
+{% if e.bullets %}<ul class="points">{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul>{% endif %}
+</li>
+{% endfor %}
+</ul>
+{% elif s == "languages" %}
+<p>{{ blocks["languages"].paragraph }}</p>
+{% endif %}
+</section>
+{%- endmacro %}
+
+{% macro body() -%}
+{% for row in rows %}
+{% if row | length > 1 %}<div class="pair">{% for s in row %}{{ section(s) }}{% endfor %}</div>
+{% else %}{{ section(row[0]) }}{% endif %}
+{% endfor %}
+{%- endmacro %}
+
+{% macro contact_section() -%}
+{% if contact %}
+<section id="contact" class="sec sec-contact" aria-labelledby="h-contact">
+<h2 id="h-contact">Contact</h2>
+{{ contact_list() }}
+</section>
+{% endif %}
+{%- endmacro %}
