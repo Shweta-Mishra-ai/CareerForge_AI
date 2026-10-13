@@ -7,11 +7,13 @@ is run.
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from typing import Any, TypeVar
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from careerforge.ai.client import AIClient, build_client
 from careerforge.ai.errors import AINotConfigured
@@ -136,20 +138,62 @@ def memo(key: tuple, compute: Callable[[], T]) -> T:
 # ── AI ──────────────────────────────────────────────────────────────────────
 
 
-def _site_config() -> dict[str, str]:
-    """Operator configuration: Streamlit secrets first, then environment variables."""
+_GEMINI_ALIASES = ("GOOGLE_API_KEY",)  # the name Google's own SDK and docs use; accepted when GEMINI_API_KEY is absent
+_warned: set[str] = set()
+
+
+def _read_secrets() -> tuple[dict[str, str], list[str]]:
+    """(values, problems) from Streamlit secrets. A missing secrets file is normal; a broken one is not, and must not
+    silently turn the AI off, so the problem is returned for the Settings page and logged once (never with values)."""
     out: dict[str, str] = {}
+    problems: list[str] = []
     try:
         secrets = st.secrets
-        for name in _KEY_NAMES:
+        for name in (*_KEY_NAMES, *_GEMINI_ALIASES):
             if name in secrets:
                 out[name] = str(secrets[name])
-    except Exception:  # noqa: BLE001, S110 - no secrets file at all is a normal situation, not an error
-        out = {}
+        for section, value in secrets.items():  # keys pasted under a [section] header are not found at the top level
+            if hasattr(value, "keys"):
+                misplaced = sorted(set(_KEY_NAMES) & {str(k) for k in value.keys()})
+                if misplaced:
+                    problems.append(
+                        f"{', '.join(misplaced)} is inside a [{section}] section of the secrets, so it is ignored. "
+                        "Put it at the top level, with no [section] header above it."
+                    )
+    except StreamlitSecretNotFoundError as exc:
+        if "Error parsing" in str(exc):  # Streamlit uses this same error for "file exists but is not valid TOML"
+            problems.append(
+                "The secrets could not be parsed, so every key in them is ignored. Check the TOML syntax: "
+                'each line must look like NAME = "value" (the quotes are required).'
+            )
+    except Exception as exc:  # noqa: BLE001 - never let a broken secrets file take the whole page down
+        problems.append(f"The secrets could not be read ({type(exc).__name__}), so they are ignored.")
+    for problem in problems:
+        if problem not in _warned:
+            _warned.add(problem)
+            logging.getLogger("careerforge.ui").warning("configuration problem: %s", problem)
+    return out, problems
+
+
+def config_problems() -> list[str]:
+    """Things wrong with the operator's configuration that would otherwise fail silently (shown in Settings)."""
+    return _read_secrets()[1]
+
+
+def _site_config() -> dict[str, str]:
+    """Operator configuration: Streamlit secrets first, then environment variables."""
+    out = _read_secrets()[0]
+    for alias in _GEMINI_ALIASES:
+        if "GEMINI_API_KEY" not in out and alias in out:
+            out["GEMINI_API_KEY"] = out[alias]
     for name in _KEY_NAMES:
         if name not in out and os.environ.get(name):
             out[name] = os.environ[name]
-    return out
+    if "GEMINI_API_KEY" not in out:
+        for alias in _GEMINI_ALIASES:
+            if os.environ.get(alias):
+                out["GEMINI_API_KEY"] = os.environ[alias]
+    return {k: v for k, v in out.items() if k not in _GEMINI_ALIASES}
 
 
 def site_secret(name: str) -> str:

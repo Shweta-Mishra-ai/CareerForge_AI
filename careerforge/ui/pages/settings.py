@@ -21,6 +21,8 @@ def render() -> None:
         "Free keys: [Google AI Studio](https://aistudio.google.com/apikey) (Gemini) and "
         "[Groq](https://console.groq.com/keys). Free plans have rate limits."
     )
+    for problem in state.config_problems():
+        st.warning(problem, icon=":material/warning:")
     own = state.user_keys()
     with st.form("keys"):
         gemini = st.text_input(

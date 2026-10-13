@@ -87,7 +87,8 @@ def ai_status_badge() -> None:
     from careerforge.ui import state
 
     if not state.ai_configured():
-        st.caption(":material/smart_toy: AI: not set up (basic mode)")
+        problem = " Check Settings: a problem was found." if state.config_problems() else ""
+        st.caption(f":material/smart_toy: AI: not set up (basic mode).{problem}")
         return
     left = state.ai_calls_left()
     detail = "your own key" if left is None else f"{left} shared actions left"
