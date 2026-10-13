@@ -45,7 +45,7 @@ FULL = LetterDetails(
 
 
 def checks(letter, **kw):
-    return {c.key: c for c in lint_letter(letter, P, kw.pop("job", JD), **kw)}
+    return {c.key: c for c in lint_letter(letter, kw.pop("job", JD), **kw)}
 
 
 class TestFormat:
@@ -194,7 +194,7 @@ class TestLint:
         return assemble_letter(P, GOOD_PARAS, replace(FULL, role="Senior Backend Engineer"), TODAY)
 
     def test_a_good_letter_passes_everything(self):
-        results = lint_letter(self.good(), P, JD, company="Northwind Payments", role="Senior Backend Engineer", pages=1)
+        results = lint_letter(self.good(), JD, company="Northwind Payments", role="Senior Backend Engineer", pages=1)
         assert [c.label for c in results if not c.passed] == []
 
     def test_every_check_can_fail_and_says_why(self):
@@ -240,7 +240,7 @@ class TestLint:
         paras = [" ".join(["word"] * n) for n in (first, rest, rest)]
         letter = assemble_letter(P, paras, LetterDetails(), TODAY)
         assert len(letter.body.split()) == words
-        c = lint_letter(letter, P, "")[0]
+        c = lint_letter(letter, "")[0]
         assert (c.key, c.passed) == ("length", ok) and (ok or c.severity == severity)
 
     @pytest.mark.parametrize("phrase", CLICHES)
@@ -283,12 +283,12 @@ class TestLint:
          (400, True, ""), (401, False, "improve"), (450, False, "improve"), (451, False, "fix")],
     )  # fmt: skip
     def test_word_count_boundaries_are_exact(self, n, ok, severity):
-        c = lint_letter(self.words_letter(n), P, "")[0]
+        c = lint_letter(self.words_letter(n), "")[0]
         assert c.passed is ok and (ok or c.severity == severity)
 
     @pytest.mark.parametrize("n,ok", [(2, False), (3, True), (5, True), (6, False)])
     def test_paragraph_count_boundaries_are_exact(self, n, ok):
-        c = {x.key: x for x in lint_letter(self.words_letter(300, n), P, "")}["paragraphs"]
+        c = {x.key: x for x in lint_letter(self.words_letter(300, n), "")}["paragraphs"]
         assert c.passed is ok
 
     def test_i_start_ratio_of_exactly_half_passes_and_more_fails(self):
@@ -336,17 +336,17 @@ class TestLint:
         from dataclasses import FrozenInstanceError
 
         with pytest.raises(FrozenInstanceError):
-            lint_letter(self.good(), P, "")[0].passed = False
+            lint_letter(self.good(), "")[0].passed = False
 
     def test_every_check_can_both_pass_and_fail(self):
         # guards against "always true" entries: each key must pass on a good letter and fail on a bad one
         kw = {"company": "Northwind Payments", "role": "Senior Backend Engineer", "pages": 1}
-        good = {c.key: c.passed for c in lint_letter(self.good(), P, JD, **kw)}
+        good = {c.key: c.passed for c in lint_letter(self.good(), JD, **kw)}
         bad = {
             c.key: c.passed
             for c in lint_letter(
                 assemble_letter(P, ["I am writing to apply."], LetterDetails(), TODAY),
-                P, JD, company="Zed", role="Quantum Chef", pages=2,
+                JD, company="Zed", role="Quantum Chef", pages=2,
             )
         }  # fmt: skip
         assert set(good) == set(bad) and all(good.values())

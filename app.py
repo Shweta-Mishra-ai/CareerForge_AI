@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from careerforge.models import MAX_FILE_BYTES
 from careerforge.readiness import check
 from careerforge.tracker import dump_file
 from careerforge.ui import state
@@ -57,16 +58,36 @@ def sidebar() -> None:
             st.caption(
                 ":material/check_circle: Ready to export" if ready else ":material/error: Not ready to export yet"
             )
+            saved = dump_file(profile, state.tracker())
             download(
                 "Save my profile",
-                dump_file(profile, state.tracker()),
+                saved,
                 f"{safe_file_stem(profile.name, 'profile')}_careerforge.json",
                 "application/json",
                 key="sidebar-save",
             )
-            st.caption("Keeps your profile and job tracker. Load it later on the Start page.")
-            if st.button("Clear everything", key="sidebar-clear", icon=":material/delete_forever:"):
-                st.session_state.clear()
+            st.caption("Keeps your profile, job tracker, saved searches and seen job links. Load it on the Start page.")
+            if len(saved.encode("utf-8")) > MAX_FILE_BYTES:
+                st.error(
+                    "This file is too big to be loaded back (limit 2 MB). Remove old applications from the tracker "
+                    "before you rely on it.",
+                    icon=":material/error:",
+                )
+            if st.session_state.get("clear-pending"):
+                st.warning(
+                    "This removes your profile, tracker and any keys you typed from this session. "
+                    "Save your profile first if you want to keep it.",
+                    icon=":material/warning:",
+                )
+                yes, no = st.columns(2)
+                if yes.button("Yes, clear", key="sidebar-clear-yes", type="primary"):
+                    st.session_state.clear()
+                    st.rerun()
+                if no.button("Keep", key="sidebar-clear-no"):
+                    st.session_state["clear-pending"] = False
+                    st.rerun()
+            elif st.button("Clear everything", key="sidebar-clear", icon=":material/delete_forever:"):
+                st.session_state["clear-pending"] = True
                 st.rerun()
         ai_status_badge()
 

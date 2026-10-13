@@ -131,7 +131,7 @@ def _cv_tab(profile: Profile) -> None:
     options = _cv_options(profile)
     if options is None:
         return
-    result = readiness_panel(profile, key="export-ready")
+    result = readiness_panel(profile)
     st.subheader("Preview", anchor=False)
     st.iframe(preview_html(profile, options), height=900)
     if not result.ready:

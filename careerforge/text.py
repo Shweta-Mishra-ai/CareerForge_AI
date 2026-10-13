@@ -13,7 +13,7 @@ import unicodedata
 from urllib.parse import urlsplit, urlunsplit
 
 # C0/C1 controls (except \t \n), zero-width chars, bidi embedding/override marks, BOM.
-_CONTROL = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f​-‏‪-‮⁠-⁤﻿]")
+_CONTROL = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
 _BULLET_GLYPH = re.compile(r"^\s*(?:[•·▪▫◦‣∙●○■□►▶*]|[-–—])\s+")
 
 

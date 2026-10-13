@@ -41,8 +41,8 @@ class Word:
     bottom: float
 
 
-def _gaps(intervals: list[tuple[float, float]], lo: float, hi: float, min_gap: float) -> list[tuple[float, float]]:
-    """Blank stretches >= min_gap inside [lo, hi] given occupied intervals."""
+def _gaps(intervals: list[tuple[float, float]], min_gap: float) -> list[tuple[float, float]]:
+    """Blank stretches >= min_gap between the occupied intervals."""
     merged: list[list[float]] = []
     for a, b in sorted(intervals):
         if merged and a <= merged[-1][1]:
@@ -62,12 +62,10 @@ def _best_cut(words: list[Word], axis: str, min_gap: float, *, strict: bool = Fa
     `strict` (used only when about to split columns) also rejects sides that are sparse right-aligned metadata."""
     if axis == "v":
         spans = [(w.x0, w.x1) for w in words]
-        lo, hi = min(w.x0 for w in words), max(w.x1 for w in words)
     else:
         spans = [(w.top, w.bottom) for w in words]
-        lo, hi = min(w.top for w in words), max(w.bottom for w in words)
     best = None
-    for a, b in sorted(_gaps(spans, lo, hi, min_gap), key=lambda g: g[0] - g[1]):  # widest first
+    for a, b in sorted(_gaps(spans, min_gap), key=lambda g: g[0] - g[1]):  # widest first
         cut = (a + b) / 2
         left = [w for w in words if (w.x1 if axis == "v" else w.bottom) <= cut]
         right = [w for w in words if (w.x0 if axis == "v" else w.top) >= cut]
@@ -160,7 +158,7 @@ def _header_cut(words: list[Word], line_h: float) -> float | None:
     column lengths are far more common in CVs than true footers.
     """
     spans = [(w.top, w.bottom) for w in words]
-    gaps = _gaps(spans, min(w.top for w in words), max(w.bottom for w in words), line_h * 1.3)
+    gaps = _gaps(spans, line_h * 1.3)
     for a, b in gaps:  # top-down: header candidates
         top, bottom = _split_y(words, (a + b) / 2)
         if top and bottom and not _best_cut(top, "v", MIN_GUTTER_PT) and _best_cut(bottom, "v", MIN_GUTTER_PT):

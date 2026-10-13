@@ -112,7 +112,9 @@ def _bullets(text: str) -> list[str]:
                 out.append(current)
                 current = ""
             while len(sentence) > 600:  # a single enormous sentence: break at a space
-                cut = sentence.rfind(" ", 0, 600) or 600
+                cut = sentence.rfind(" ", 0, 600)
+                if cut <= 0:  # no space to break at (a long URL, or text written without spaces): cut at the limit
+                    cut = 600
                 out.append(sentence[:cut].strip())
                 sentence = sentence[cut:].strip()
             current = f"{current} {sentence}".strip()

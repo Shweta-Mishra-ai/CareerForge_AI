@@ -18,7 +18,7 @@ BAND_HELP = {
 }
 
 
-def readiness_panel(profile: Profile, *, key: str = "ready") -> Readiness:
+def readiness_panel(profile: Profile) -> Readiness:
     """Shows what stops this CV from being submitted, and what would improve it."""
     result = check(profile)
     blockers, warnings, tips = result.of("blocker"), result.of("warning"), result.of("tip")

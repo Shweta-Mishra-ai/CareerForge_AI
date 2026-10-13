@@ -73,5 +73,5 @@ def build_basic_letter(
     )
     d_layout = LetterDetails(**{**d.__dict__, "availability": ""})  # already placed before the thanks
     letter = assemble_letter(p, paragraphs, d_layout, today)
-    checks = lint_letter(letter, p, job_text, company=d.company, role=d.role)
+    checks = lint_letter(letter, job_text, company=d.company, role=d.role)
     return LetterDraft(letter, (), tuple(checks), tuple(pairs))

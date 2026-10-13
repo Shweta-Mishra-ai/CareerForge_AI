@@ -39,7 +39,7 @@ def _current(profile, job: str) -> TailorResult | None:
     return result
 
 
-def _show(profile, result: TailorResult) -> None:
+def _show(result: TailorResult) -> None:
     left, right = st.columns(2)
     left.metric("Match before", f"{result.before.overall}/100")
     right.metric("Match after", f"{result.after.overall}/100", delta=result.after.overall - result.before.overall)
@@ -93,7 +93,7 @@ def render() -> None:
         _run(profile, job)
     result = _current(profile, job)
     if result is not None:
-        _show(profile, result)
+        _show(result)
 
 
 if __name__ == "__main__":

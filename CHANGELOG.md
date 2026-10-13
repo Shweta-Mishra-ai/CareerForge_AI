@@ -45,6 +45,17 @@ sure we are. No tool can promise that a recruiter, hiring manager or ATS accepts
 * The portfolio tab links to free hosts (Netlify Drop, GitHub Pages, Cloudflare Pages). Nothing is hosted for you:
   you download the zip, or send the single `index.html`.
 
+### Audit pass (silent failures, dead code, bugs)
+* **Silent failure fixed:** a secrets file that is not valid TOML, or keys pasted under a `[section]` header, were
+  ignored without a word and the app ran with no AI. Settings now says what is wrong (never echoing a value).
+  `GOOGLE_API_KEY` is accepted as the Gemini key.
+* **Bug fixed:** a LinkedIn export with a very long description without spaces (a long URL, or text in a script that
+  does not use spaces) broke the import at the 600-character limit.
+* "Clear everything" now asks first; a save file too large to load back is flagged; the tracker shows a count per
+  stage; the GitHub import shows its repo/star/follower summary and the LinkedIn import lists the files it read.
+* Dead code removed: unused settings and parameters, a leftover `retryable` flag, invisible bidirectional characters
+  in two source files (now guarded by a test), leftover empty `core/` and `templates/` folders.
+
 ### Real-browser review, load test and parity with the old app
 * Boxes that looked blank (job posting after a file/link load, saved-search load) and a stray `None` on the Jobs page:
   fixed with real-browser tests. Measurements and what they do not prove: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).

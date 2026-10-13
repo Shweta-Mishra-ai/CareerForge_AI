@@ -24,7 +24,6 @@ class AISettings:
     timeout_s: float = 45.0
     max_tokens: int = 4096
     max_tokens_cap: int = 16384
-    max_source_chars: int = 24000
     gemini_base_url: str | None = None  # tests point these at a local fake server
     groq_base_url: str | None = None
 

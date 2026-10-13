@@ -67,7 +67,11 @@ def ingest_upload(name: str, data: bytes, client: AIClient | None) -> IngestResu
         return IngestResult(Profile.from_json(doc.raw), "profile_json")
     if doc.kind == "linkedin_export":
         imported = profile_from_linkedin_export(doc.raw)
-        return IngestResult(imported.profile, "linkedin_export", imported.warnings)
+        used = ", ".join(sorted(imported.files_used)) or "none of the expected files"
+        audit = (
+            f"Read from your LinkedIn export: {used}. Nothing else in the ZIP (messages, connections...) was opened."
+        )
+        return IngestResult(imported.profile, "linkedin_export", (*imported.warnings, audit))
 
     text = with_links(doc.text, doc.links)
     if client is None:

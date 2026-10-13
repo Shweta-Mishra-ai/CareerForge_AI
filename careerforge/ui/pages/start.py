@@ -117,6 +117,11 @@ def _github_tab() -> None:
             st.error(explain(exc), icon=":material/error:")
             return
         notes = list(imp.warnings)
+        if imp.public_repos or imp.total_stars or imp.followers:
+            notes.append(
+                f"GitHub summary (for your information, not added to your CV): {imp.public_repos} public repositories, "
+                f"{imp.total_stars} stars, {imp.followers} followers."
+            )
         if not current:
             notes.append(
                 "This profile has projects and skills only. Add your experience and education on the Review page "

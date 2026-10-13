@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 from careerforge.ats.jd import parse_job_description
-from careerforge.models import Profile
 from careerforge.nlp import content_tokens
 from careerforge.writing.letter_format import Letter
 
@@ -67,7 +66,7 @@ def _sentences(text: str) -> list[str]:
 
 
 def lint_letter(
-    letter: Letter, profile: Profile, job_text: str, *, company: str = "", role: str = "", pages: int | None = None
+    letter: Letter, job_text: str, *, company: str = "", role: str = "", pages: int | None = None
 ) -> list[LetterCheck]:
     body = letter.body
     low = body.lower()

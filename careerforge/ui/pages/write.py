@@ -218,7 +218,7 @@ def _letter(profile, job: str, company: str, role: str) -> None:
         key=f"letter-text-{hash(draft.text)}",
     )
     letter = with_body(draft.letter, edited)
-    _lint_panel(lint_letter(letter, profile.exportable(), job, company=details.company, role=details.role))
+    _lint_panel(lint_letter(letter, job, company=details.company, role=details.role))
     with st.expander("Preview the whole letter"):
         st.code(letter.text(), language=None, wrap_lines=True)
     _letter_downloads(profile, letter)

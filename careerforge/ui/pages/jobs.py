@@ -283,6 +283,9 @@ def _tracker(profile) -> None:
                 else:
                     st.caption("No reply after three weeks usually means no. Consider moving on.")
     st.subheader("Applications", anchor=False)
+    counts = {status: len(found) for status, found in tracker.by_status().items() if found}
+    for column, (status, n) in zip(st.columns(len(counts)), counts.items(), strict=True):
+        column.metric(status.title(), n)
     frame = pd.DataFrame(
         [
             {

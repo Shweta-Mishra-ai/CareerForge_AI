@@ -159,3 +159,53 @@ def test_hostile_values_are_stored_inertly():
 def test_path_traversal_names_are_harmless():
     r = load({"../../Positions.csv": POSITIONS, "..\\Skills.csv": SKILLS})
     assert r.profile.experience and r.profile.skills
+
+
+def test_the_upload_pipeline_tells_the_user_exactly_which_files_were_read():
+    from careerforge.ingest.pipeline import ingest_upload
+
+    result = ingest_upload("export.zip", zip_bytes({**FULL, "messages.csv": b"From,Content\nx,SECRET\n"}), None)
+    note = next(n for n in result.warnings if n.startswith("Read from your LinkedIn export"))
+    assert "positions.csv" in note and "skills.csv" in note and "messages" not in note.split("Nothing else")[0]
+    assert "SECRET" not in result.profile.model_dump_json()
+
+
+class TestLongAndMalformedInput:
+    def test_text_without_spaces_is_split_at_the_limit_instead_of_breaking_the_import(self):
+        from careerforge.ingest.linkedin import _bullets
+
+        for text in ("x" * 1500, "漢字" * 700, "word " * 200 + "y" * 900):
+            bullets = _bullets(text)
+            assert all(len(b) <= 600 for b in bullets), [len(b) for b in bullets]
+            assert "".join(bullets).replace(" ", "") == text.replace(" ", "")  # nothing was lost
+
+    def test_an_export_with_a_long_unbroken_description_still_imports(self):
+        positions = (
+            b"Company Name,Title,Description,Location,Started On,Finished On\nAcme,Dev,"
+            + b"x" * 1500
+            + b",,Mar 2021,\n"
+        )
+        r = load({"Positions.csv": positions, "Profile.csv": PROFILE})
+        assert [len(b) for b in r.profile.experience[0].bullets] == [600, 600, 300]
+
+    def test_unreadable_values_are_reported_and_skipped_not_fatal(self):
+        files = {
+            "Profile.csv": PROFILE.replace(b"[PERSONAL:https://priya.dev]", b"[PERSONAL:javascript:alert(1)]"),
+            "Email Addresses.csv": b"Email Address,Confirmed,Primary,Updated On\nnot-an-email,Yes,Yes,2024\n",
+            "PhoneNumbers.csv": b"Extension,Number,Type\n,abc,Mobile\n",
+            "Certifications.csv": b"Name,Url,Authority,Started On,Finished On,License Number\nAWS,javascript:x,Amazon,garbage date,,\n",
+            "Projects.csv": b"Title,Description,Url,Started On,Finished On\nTool,Does things,javascript:x,,\n",
+        }
+        r = load(files)
+        assert r.profile.contact.email == "" and r.profile.contact.phone == "" and r.profile.contact.website == ""
+        assert "An email address in the export could not be read" in r.warnings
+        assert "A phone number in the export could not be read" in r.warnings
+        assert any("could not read the date" in w for w in r.warnings)
+        assert r.profile.certifications[0].url == "" and r.profile.projects[0].url == ""
+
+    def test_an_unusually_large_entry_refuses_the_whole_export_with_a_sentence(self, monkeypatch):
+        from careerforge.ingest import linkedin
+
+        monkeypatch.setattr(linkedin, "MAX_ENTRY_BYTES", 50)
+        with pytest.raises(UnreadableDocument, match="unusually large"):
+            load({"Positions.csv": POSITIONS})

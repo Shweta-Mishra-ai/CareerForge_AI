@@ -157,6 +157,7 @@ class TestGitHub:
         assert not at.exception and [x.name for x in p.projects] == ["alpha", "beta"]
         assert p.experience == [] and p.education == [] and set(p.skills) == {"Go", "Python"}
         assert any("projects and skills only" in w for w in at.session_state["ingest"].warnings)
+        assert any("2 public repositories, 7 stars, 1 followers" in w for w in at.session_state["ingest"].warnings)
 
     def test_adds_to_an_existing_profile_without_duplicates_or_touching_jobs(self, monkeypatch):
         monkeypatch.setattr("careerforge.ingest.github.fetch_github", lambda user, token=None, **k: self.IMPORT)

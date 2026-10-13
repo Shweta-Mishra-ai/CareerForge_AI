@@ -77,7 +77,6 @@ DENSITY: dict[str, tuple[float, float, float, float]] = {
     "normal": (10.5, 1.38, 11, 15),
     "relaxed": (11, 1.5, 14, 18),
 }
-PAPER_SIZES = ("A4", "Letter")
 _HEX = re.compile(r"#[0-9a-fA-F]{6}")
 DEFAULT_ACCENT = "#1f4e79"
 

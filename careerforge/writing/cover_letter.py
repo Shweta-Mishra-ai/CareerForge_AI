@@ -167,7 +167,7 @@ def write_cover_letter(
         if len(repaired_issues) <= len(issues):  # never swap in a worse draft
             paragraphs, issues = repaired, repaired_issues
     letter = assemble_letter(p, paragraphs, d, today)
-    checks = lint_letter(letter, p, posting, company=company, role=role)
+    checks = lint_letter(letter, posting, company=company, role=role)
     return LetterDraft(letter, tuple(issues), tuple(checks), tuple(pairs))
 
 

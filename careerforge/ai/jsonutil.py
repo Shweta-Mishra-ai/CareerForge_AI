@@ -77,7 +77,7 @@ def _strip_trailing_commas(raw: str) -> str:
 
 def extract_json(text: str | None) -> Any:
     """Return the first JSON object/array in `text`. Raises JSONExtractError / JSONTruncatedError."""
-    body = (text or "").lstrip("﻿").strip()
+    body = (text or "").lstrip("\ufeff").strip()
     if not body:
         raise JSONExtractError("Empty response")
     if fenced := _FENCE.search(body):

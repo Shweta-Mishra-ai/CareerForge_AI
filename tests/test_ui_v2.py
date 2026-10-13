@@ -318,3 +318,113 @@ class TestPortfolioLayouts:
         urls = [b.proto.url for b in at.get("link_button")]
         assert "https://app.netlify.com/drop" in urls and len(urls) == 3
         assert "nothing is hosted for you" in texts(at)
+
+
+class TestSidebarSafety:
+    """Clearing is a destructive click: it asks first. A save file too big to load back says so."""
+
+    def app(self):
+        return new_app(experienced()).run()
+
+    def test_clear_everything_asks_before_it_deletes(self):
+        at = self.app()
+        button(at, "Clear everything").click()
+        at.run()
+        assert at.session_state["profile"] is not None  # nothing was deleted by the first click
+        assert "this removes your profile" in " ".join(w.value.lower() for w in at.sidebar.warning)
+        button(at, "Yes, clear").click()
+        at.run()
+        assert "profile" not in at.session_state or at.session_state["profile"] is None
+
+    def test_keep_cancels_the_clear(self):
+        at = self.app()
+        button(at, "Clear everything").click()
+        at.run()
+        button(at, "Keep").click()
+        at.run()
+        assert at.session_state["profile"] is not None and not at.sidebar.warning
+        assert any(b.label == "Clear everything" for b in at.sidebar.button)
+
+    def test_a_save_file_too_large_to_load_back_is_flagged(self, monkeypatch):
+        from careerforge import models
+
+        monkeypatch.setattr(models, "MAX_FILE_BYTES", 500)
+        at = self.app()
+        assert any("too big to be loaded back" in e.value for e in at.sidebar.error)
+
+    def test_a_normal_save_file_raises_no_flag(self):
+        assert not self.app().sidebar.error
+
+    def test_the_real_save_limit_is_one_the_loader_enforces(self):
+        from careerforge.models import MAX_FILE_BYTES, Profile, ProfileError
+
+        with pytest.raises(ProfileError):
+            Profile.from_json(" " * (MAX_FILE_BYTES + 1))
+
+
+class TestTrackerSummary:
+    def test_the_tracker_shows_how_many_applications_are_at_each_stage(self):
+        t, _ = Tracker().add("A", "Dev", status="applied")
+        t, _ = t.add("B", "Dev", status="applied")
+        t, _ = t.add("C", "Dev", status="interview")
+        at = new_app(experienced(), tracker=t).run()
+        open_page(at, "jobs")
+        at.radio(key="jobs-view").set_value("Application tracker").run()
+        assert {m.label: m.value for m in at.metric} == {"Applied": "2", "Interview": "1"}
+
+
+class TestLinkedInPageSections:
+    """Every part of the LinkedIn page, including the ones a short CV never shows."""
+
+    def page(self, profile):
+        at = new_app(profile).run()
+        return open_page(at, "linkedin")
+
+    def test_a_full_profile_shows_experience_education_projects_and_certifications(self):
+        from test_render_cv import maximal
+
+        from careerforge.models import Project
+
+        p = maximal().model_copy(
+            update={
+                "projects": [
+                    Project(name="Tool", description="Does things.", url="https://github.com/a/tool", tech=["Go"])
+                ]
+            }
+        )
+        at = self.page(p)
+        body = texts(at)
+        assert not at.exception
+        for heading in ("experience", "skills", "education", "projects", "certifications"):
+            assert heading in body, heading
+        assert "github" in body and "a/tool" in body and "skills used: go" in body
+        assert "pin these three as top skills" in body
+        assert any("characters" in c.value for c in at.caption)
+
+    def test_a_profile_with_nothing_to_paste_says_so_instead_of_showing_empty_boxes(self):
+        from careerforge.models import Contact, Profile, Project
+
+        at = self.page(
+            Profile(name="Sam Rivera", contact=Contact(email="sam@gmail.com"), projects=[Project(name="Tool")])
+        )
+        body = texts(at)
+        assert not at.exception and "nothing to paste" in body and "no experience in your profile" in body
+
+    def test_character_counters_are_shown_against_linkedins_limits(self):
+        from test_render_cv import experienced
+
+        at = self.page(experienced())
+        captions = [c.value for c in at.caption]
+        assert any("of 220 characters" in c for c in captions) and any("of 2600 characters" in c for c in captions)
+
+
+class TestSettingsConfigurationWarnings:
+    def test_a_configuration_problem_is_shown_on_the_settings_page_and_in_the_sidebar(self, monkeypatch):
+        from careerforge.ui import state
+
+        monkeypatch.setattr(
+            state, "config_problems", lambda: ["The secrets could not be parsed, so every key is ignored."]
+        )
+        at = open_page(new_app().run(), "settings")
+        assert any("could not be parsed" in w.value for w in at.warning)
+        assert "check settings" in texts(at)

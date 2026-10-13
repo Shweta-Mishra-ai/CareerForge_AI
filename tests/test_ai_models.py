@@ -401,3 +401,63 @@ class TestCheckRoutes:
         assert [(c.route, c.ok) for c in checks] == [("fake/a", True), ("fake/b", False), ("fake/c", False)]
         assert "KEY-SECRET-1234" not in " ".join(c.detail for c in checks)  # keys never reach the screen
         assert all(c.seconds >= 0 for c in checks)
+
+
+class TestProviderErrorPaths:
+    """Error mapping on the paths the happy-path tests do not reach (real SDKs against a local fake server)."""
+
+    GROQ_LIST = ("GET", "/openai/v1/models")
+    GROQ_CHAT = ("POST", "/openai/v1/chat/completions")
+
+    @pytest.mark.parametrize(
+        "status,error",
+        [
+            (401, "AIAuthError"),
+            (403, "AIAuthError"),
+            (429, "AIRateLimited"),
+            (500, "AIUnavailable"),
+            (404, "AIModelNotFound"),
+        ],
+    )
+    def test_groq_model_listing_maps_http_errors(self, api, status, error):
+        from careerforge.ai import errors
+
+        q = api({self.GROQ_LIST: (status, {"error": {"message": "nope"}})})
+        with pytest.raises(getattr(errors, error)):
+            GroqProvider("KEY-GROQ-123456", base_url=q.url, timeout_s=3).list_models()
+
+    def test_groq_model_listing_when_the_service_is_unreachable(self):
+        from careerforge.ai.errors import AIUnavailable
+
+        with pytest.raises(AIUnavailable, match="Network problem"):
+            GroqProvider("KEY-GROQ-123456", base_url="http://127.0.0.1:9", timeout_s=1).list_models()
+
+    def test_groq_completion_when_the_service_is_unreachable(self):
+        from careerforge.ai.errors import AIUnavailable
+
+        with pytest.raises(AIUnavailable, match="Network problem"):
+            GroqProvider("KEY-GROQ-123456", base_url="http://127.0.0.1:9", timeout_s=1).complete("m", Request("s", "u"))
+
+    def test_groq_answer_with_no_choices_is_a_bad_request_not_an_empty_success(self, api):
+        from careerforge.ai.errors import AIBadRequest
+
+        q = api(
+            {self.GROQ_CHAT: (200, {"id": "x", "object": "chat.completion", "created": 1, "model": "m", "choices": []})}
+        )
+        with pytest.raises(AIBadRequest, match="no answer"):
+            GroqProvider("KEY-GROQ-123456", base_url=q.url, timeout_s=3).complete("m", Request("s", "u"))
+
+    def test_gemini_refusal_without_text_is_reported_as_a_refusal(self, api):
+        from careerforge.ai.errors import AIBadRequest
+
+        body = {"candidates": [{"content": {"role": "model", "parts": []}, "finishReason": "SAFETY"}]}
+        g = api({("POST", "/v1beta/models/m:generateContent"): (200, body)})
+        with pytest.raises(AIBadRequest, match="declined"):
+            GeminiProvider("KEY-GEM-123456", base_url=g.url, timeout_s=3).complete("m", Request("s", "u"))
+
+    @pytest.mark.parametrize("header,expected", [("7", 7.0), ("500", 120.0), ("soon", None), (None, None)])
+    def test_retry_after_is_parsed_capped_and_never_trusted_blindly(self, header, expected):
+        from careerforge.ai.providers import _retry_after
+
+        assert _retry_after({} if header is None else {"retry-after": header}) == expected
+        assert _retry_after(object()) is None

@@ -6,9 +6,7 @@ import re
 
 
 class AIError(Exception):
-    """Base class. `retryable` says whether trying the same route again could help."""
-
-    retryable = False
+    """Base class for every AI failure."""
 
 
 class AINotConfigured(AIError):
@@ -32,8 +30,6 @@ class AIQuotaExhausted(AIError):
 
 
 class AIRateLimited(AIError):
-    retryable = True
-
     def __init__(self, message: str, retry_after: float | None = None):
         super().__init__(message)
         self.retry_after = retry_after
@@ -41,8 +37,6 @@ class AIRateLimited(AIError):
 
 class AIUnavailable(AIError):
     """Timeouts, connection errors, 5xx."""
-
-    retryable = True
 
 
 class AIOutputError(AIError):

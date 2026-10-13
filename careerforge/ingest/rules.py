@@ -243,9 +243,7 @@ def _is_contact_text(part: str) -> bool:
     )
 
 
-def _rescue_name(
-    lines: list[str], sections: dict[str, list[str]], notes: _Notes, headline: str
-) -> tuple[str, str, str]:
+def _rescue_name(sections: dict[str, list[str]], notes: _Notes, headline: str) -> tuple[str, str, str]:
     """Two-column CVs (and LinkedIn PDFs) are read sidebar first, so the name ends up at the end of the last sidebar
     section, followed by the headline and often a place. Take a name-like line plus one headline-like line (plus an
     optional place) that close a section, and remove them from it. Returns (name, headline, location)."""
@@ -425,7 +423,7 @@ def _is_detail_line(text: str) -> bool:
     return len(text) <= 90 and not re.search(r"[.!?]$", text) and len(text.split()) <= 12
 
 
-def _fill_missing(entry: dict, text: str, notes: _Notes) -> None:
+def _fill_missing(entry: dict, text: str) -> None:
     """The line under a job header names the other half (company or title), optionally with a location."""
     pieces = [p.strip() for p in re.split(r"\s+[·•|]\s+", text) if p.strip()]
     first, rest = pieces[0], pieces[1:]
@@ -480,7 +478,7 @@ def _parse_experience(lines: list[str], notes: _Notes) -> list[Experience]:
                 and _is_detail_line(text)
                 and not (current["title"] and current["company"])
             ):
-                _fill_missing(current, text, notes)  # "Title   dates" then "Company · Location" on the next line
+                _fill_missing(current, text)  # "Title   dates" then "Company · Location" on the next line
             else:
                 current["raw"].append(text if kind == "text" else "• " + text)
     flush()
@@ -517,7 +515,7 @@ def _marked_with_headers(lines: list[str]) -> list[tuple[str, str]]:
     return kinds
 
 
-def _parse_education(lines: list[str], notes: _Notes) -> list[Education]:
+def _parse_education(lines: list[str]) -> list[Education]:
     blocks: list[list[str]] = []
     block: list[str] = []
     for raw in lines:
@@ -605,7 +603,7 @@ def _education_entry(block: list[str]) -> Education | None:
     )
 
 
-def _parse_projects(lines: list[str], notes: _Notes) -> list[Project]:
+def _parse_projects(lines: list[str]) -> list[Project]:
     projects: list[Project] = []
     cur: dict | None = None
     after_blank = True
@@ -772,7 +770,7 @@ def read_cv(text: str) -> tuple[Profile, list[str]]:
     head, sections = _split_sections(lines)
     name, headline, location = _parse_header(head, notes)
     if not name:
-        name, headline, place = _rescue_name(lines, sections, notes, headline)
+        name, headline, place = _rescue_name(sections, notes, headline)
         location = location or place
     contact = _contact(text)
     for line in sections.get("contact", []):
@@ -789,8 +787,8 @@ def read_cv(text: str) -> tuple[Profile, list[str]]:
             return default
 
     experience = safe("experience", lambda: _parse_experience(sections.get("experience", []), notes), [])
-    education = safe("education", lambda: _parse_education(sections.get("education", []), notes), [])
-    projects = safe("projects", lambda: _parse_projects(sections.get("projects", []), notes), [])
+    education = safe("education", lambda: _parse_education(sections.get("education", [])), [])
+    projects = safe("projects", lambda: _parse_projects(sections.get("projects", [])), [])
     certs = safe("certifications", lambda: _parse_certifications(sections.get("certifications", [])), [])
     skills = _parse_skills(sections.get("skills", [])) or taxonomy.find_skills(text)
     if re.search(r"^\s*top skills\s*$", text, re.I | re.M):  # LinkedIn lists only the top three
