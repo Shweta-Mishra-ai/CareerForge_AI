@@ -127,6 +127,9 @@ def test_a_file_that_is_not_a_photo_is_explained(session, tmp_path):
         str(fake)
     )
     expect(page.get_by_text("could not be read as a photo")).to_be_visible(timeout=30000)
+    expect(page.get_by_text("built without a photo")).to_be_visible()
+    expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible()  # not blocked
+    expect(page.frame_locator("iframe").first.locator(".avatar")).to_have_text("PN")
     s.assert_clean()
 
 

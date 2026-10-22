@@ -161,8 +161,8 @@ def with_accent(theme: Theme, accent: str) -> Theme:
     return candidate
 
 
-# Accent presets as (colour for light pages, colour for dark pages). Each is checked against every palette in the tests,
-# so choosing one can never produce unreadable text; that is also what makes the automatic theme customisable.
+# Accent presets as (label, colour for light pages, colour for dark pages). Each is checked against every palette in
+# the tests, so choosing one never produces unreadable text; that is also what makes the automatic theme customisable.
 PRESETS: dict[str, tuple[str, str, str]] = {
     "blue": ("Blue", "#1d4ed8", "#7dd3fc"),
     "indigo": ("Indigo", "#4338ca", "#a5b4fc"),

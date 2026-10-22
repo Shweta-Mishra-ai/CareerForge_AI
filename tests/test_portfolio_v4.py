@@ -80,6 +80,20 @@ class TestPhoto:
         with pytest.raises(PhotoError, match=message):
             prepare_photo(data)
 
+    def test_a_tiny_picture_is_refused_rather_than_blown_up_blurry(self):
+        with pytest.raises(PhotoError, match="too small"):
+            prepare_photo(image_bytes(size=(120, 300)))
+        assert prepare_photo(image_bytes(size=(200, 200)))[:2] == b"\xff\xd8"
+
+    @pytest.mark.parametrize(
+        ("mode", "fmt", "colour"),
+        [("I;16", "PNG", 0), ("1", "PNG", 0), ("L", "JPEG", 0), ("CMYK", "JPEG", (0, 0, 0, 0)), ("LA", "PNG", (0, 0))],
+    )
+    def test_unusual_colour_modes_still_make_a_normal_photo(self, mode, fmt, colour):
+        out = prepare_photo(image_bytes(fmt, size=(300, 400), mode=mode, colour=colour))
+        with Image.open(io.BytesIO(out)) as img:
+            assert (img.mode, img.size) == ("RGB", (SIDE, SIDE))
+
     def test_huge_files_and_pixel_bombs_are_refused(self):
         with pytest.raises(PhotoError, match="8 MB"):
             prepare_photo(b"\xff" * (8 * 1024 * 1024 + 1))

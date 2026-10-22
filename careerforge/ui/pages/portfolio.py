@@ -9,9 +9,13 @@ from careerforge.models import Profile
 from careerforge.readiness import NotReady
 from careerforge.render.cv import PdfEngineUnavailable, render_cv_pdf
 from careerforge.render.options import RenderOptions
+from careerforge.render.photo import PhotoError
 from careerforge.render.portfolio import (
+    LAYOUT_KEYS,
     LAYOUTS,
     PORTFOLIO_SECTIONS,
+    PORTFOLIO_TITLES,
+    Layout,
     PortfolioOptions,
     blockers,
     build_portfolio,
@@ -20,16 +24,6 @@ from careerforge.render.themes import PRESETS, THEMES
 from careerforge.ui import state
 from careerforge.ui.errors import explain
 from careerforge.ui.widgets import download, first_error, safe_file_stem
-
-SECTION_LABELS = {
-    "about": "About",
-    "projects": "Projects",
-    "experience": "Experience",
-    "skills": "Skills",
-    "education": "Education",
-    "certifications": "Certifications",
-    "languages": "Languages",
-}
 
 
 def _portfolio_cv(profile: Profile) -> bytes | None:
@@ -53,10 +47,10 @@ def _portfolio_cv(profile: Profile) -> bytes | None:
     return data
 
 
-def _look() -> tuple[str, str, str | None, str | None]:
+def _look() -> tuple[Layout, str, str | None, str | None]:
     """Layout, theme, custom accent and named colour, from the "Look" controls."""
     st.subheader("1. Look", anchor=False)
-    layout = st.radio("Layout", list(LAYOUTS), format_func=lambda k: LAYOUTS[k][0], key="pf-layout")
+    layout: Layout = st.radio("Layout", LAYOUT_KEYS, format_func=lambda k: LAYOUTS[k][0], key="pf-layout")
     st.caption(LAYOUTS[layout][1])
     theme = st.radio(
         "Page colours",
@@ -88,7 +82,7 @@ def _content() -> dict:
         "Sections shown, in this order",
         list(PORTFOLIO_SECTIONS),
         default=list(PORTFOLIO_SECTIONS),
-        format_func=SECTION_LABELS.get,
+        format_func=lambda k: PORTFOLIO_TITLES[k],
         key="pf-order",
         help="Remove a section to leave it out. A section your profile has no content for is skipped anyway.",
     )
@@ -169,14 +163,14 @@ def _downloads(profile: Profile, built) -> None:
     with d1:
         download(
             "Download site (.zip with deploy guide)",
-            built.zip_bytes(),
+            built.zip_bytes,  # built on click, not on every rerun
             f"{stem}_portfolio.zip",
             "application/zip",
             key="dl-pf-zip",
             primary=True,
         )
     with d2:
-        download("Download index.html only", built.html, "index.html", "text/html", key="dl-pf-html")
+        download("Download index.html only", lambda: built.html, "index.html", "text/html", key="dl-pf-html")
     host1, host2, host3 = st.columns(3)
     host1.link_button(
         "Publish on Netlify (drag the unzipped folder)", "https://app.netlify.com/drop", icon=":material/open_in_new:"
@@ -227,7 +221,11 @@ def render() -> None:
         return
     cv_pdf = _portfolio_cv(profile) if options.include_cv else None
     try:
-        built = build_portfolio(profile, options, cv_pdf=cv_pdf, photo=photo)
+        try:
+            built = build_portfolio(profile, options, cv_pdf=cv_pdf, photo=photo)
+        except PhotoError as exc:  # a bad photo must not block the site: say why, build it without one
+            content_col.error(f"{exc}. The site below is built without a photo.", icon=":material/error:")
+            built = build_portfolio(profile, options, cv_pdf=cv_pdf)
     except (ValueError, NotReady) as exc:
         st.error(explain(exc) if isinstance(exc, NotReady) else str(exc), icon=":material/error:")
         return

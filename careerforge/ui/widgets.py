@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import streamlit as st
 from pydantic import ValidationError
 
@@ -101,7 +103,18 @@ def ai_status_badge() -> None:
     st.caption(f":material/smart_toy: AI: ready ({detail})")
 
 
-def download(label: str, data: str | bytes, file_name: str, mime: str, *, key: str, primary: bool = False) -> None:
+def download(
+    label: str,
+    data: str | bytes | Callable[[], str | bytes],
+    file_name: str,
+    mime: str,
+    *,
+    key: str,
+    primary: bool = False,
+) -> None:
+    """A download button. Pass a function as `data` for files that change on every rerun (the portfolio, the saved
+    profile): it then runs only when the button is clicked. Bytes are sent to the browser on every rerun, and a rerun
+    that replaces them while the browser is still fetching the old copy shows up as a 404 in the console."""
     st.download_button(
         label,
         data,

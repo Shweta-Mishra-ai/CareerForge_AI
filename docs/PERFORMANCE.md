@@ -40,8 +40,11 @@ Each has a real-browser test that fails without the fix.
 
 * A sidebar that stays open and covers the page on a phone appeared in a desktop browser narrowed to 390 px, but not in
   mobile emulation (touch + phone user agent), where Streamlit closes it after navigation. Real phones were not tested.
-* Occasional `404` console messages under 20 simultaneous PDF builds appeared once and did not repeat; the cause is
-  unknown.
+* Occasional `404` console messages (found under load, later reproduced with one user): Streamlit's download button
+  fetches its file in the background as soon as it is drawn, and a rerun deletes that file. A page that reruns on every
+  change (the portfolio options, the sidebar's *Save my profile*) could delete it mid-fetch. Fixed on 2026-10-22: those
+  buttons now build their file only when clicked. Load test afterwards (5 users, every page, and 5 users building PDFs
+  and portfolios at once): 0 browser errors, 0 blank pages, 0 server errors.
 
 ## Reproduce
 

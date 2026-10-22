@@ -12,7 +12,7 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Literal
+from typing import Literal, get_args
 from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
@@ -30,6 +30,7 @@ from careerforge.render.themes import PRESETS, THEMES, with_accent, with_preset
 from careerforge.render.view import build_blocks, contact_items, meta_description
 from careerforge.text import normalize_url
 
+Layout = Literal["profile", "spotlight", "hero", "bento", "editorial"]
 _HOSTNAME = re.compile(r"(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}")
 LAYOUTS: dict[str, tuple[str, str]] = {
     "profile": (
@@ -55,9 +56,10 @@ LAYOUTS: dict[str, tuple[str, str]] = {
         "Serif typography with section labels in the margin. Calm and print-like; suits writing-heavy CVs.",
     ),
 }
+LAYOUT_KEYS: list[Layout] = list(get_args(Layout))
 SUMMARY_IN_HERO = {"spotlight", "bento"}  # these show the summary in the introduction instead of an About section
 PORTFOLIO_SECTIONS = ("about", "projects", "experience", "skills", "education", "certifications", "languages")
-_TITLES = {
+PORTFOLIO_TITLES = {
     "about": "About",
     "projects": "Projects",
     "experience": "Experience",
@@ -74,9 +76,7 @@ class PortfolioOptions(BaseModel):
 
     theme: str = "dark"
     accent: str | None = None
-    preset: str | None = (
-        None  # a named colour (see themes.PRESETS); unlike `accent` it also works on the automatic theme
-    )
+    preset: str | None = None  # a named colour (themes.PRESETS); unlike `accent`, fine on the automatic theme
     site_url: str = ""  # the address you will publish at; enables the canonical link
     show_email: bool = True
     show_phone: bool = False  # a public phone number invites spam, so it is opt-in
@@ -84,7 +84,7 @@ class PortfolioOptions(BaseModel):
     hidden: frozenset[str] = frozenset()
     order: tuple[str, ...] = ()  # sections in the order you want; any you leave out follow in the default order
     lang: str = "en"
-    layout: Literal["profile", "spotlight", "hero", "bento", "editorial"] = "profile"
+    layout: Layout = "profile"
     show_location: bool = False  # a city on a public page is a privacy choice, so it is opt-in
     custom_domain: str = ""  # e.g. "jane.dev": writes the CNAME file GitHub Pages uses and sets the site address
     noindex: bool = False  # ask search engines not to list the page (robots.txt and a meta tag)
@@ -358,7 +358,7 @@ def build_portfolio(
             current=current,
             current_mono=monogram(current.company or current.title) if current else "",
             photo=photo_uri,
-            titles=_TITLES,
+            titles=PORTFOLIO_TITLES,
             cv_name=_CV_NAME,
             contact=contact,
             stats=_stats(p, today) if options.show_stats else [],

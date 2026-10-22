@@ -3,6 +3,7 @@
 import json
 import ssl
 import subprocess
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -45,7 +46,15 @@ class Site:
             def log_message(self, *a):
                 pass
 
-        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), H)
+        class Server(ThreadingHTTPServer):
+            def handle_error(self, request, client_address):
+                if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError, ssl.SSLError)):
+                    outer.dropped += 1  # the client refused our certificate and hung up: what those tests expect
+                else:
+                    super().handle_error(request, client_address)
+
+        self.dropped = 0
+        self.httpd = Server(("127.0.0.1", 0), H)
         if tls:
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             ctx.load_cert_chain(*tls)
@@ -246,6 +255,7 @@ class TestHttps:
         policy = FetchPolicy(allow_private=True, ports=None, timeout=3, verify=cert)
         with pytest.raises(FetchFailed, match="certificate"):
             fetch_page(f"https://other.example.test:{s.port}/", policy, resolver_to("127.0.0.1"))
+        assert s.seen == []  # not a single request reached the server with the wrong certificate
 
     def test_untrusted_certificate_is_rejected(self, site, tls_files):
         cert, key = tls_files
@@ -256,6 +266,7 @@ class TestHttps:
                 FetchPolicy(allow_private=True, ports=None, timeout=3),
                 resolver_to("127.0.0.1"),
             )
+        assert s.seen == []
 
 
 JOB_LD = {"@context": "https://schema.org", "@type": "JobPosting", "title": "Senior Backend Engineer",

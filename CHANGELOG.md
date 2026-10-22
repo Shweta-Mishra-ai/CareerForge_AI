@@ -5,7 +5,16 @@
 CareerForge AI (CV builder) and CareerBoost AI (ATS, portfolio, jobs) were audited and merged into this single app.
 The audit findings and how each was resolved are in [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
 
-### Portfolio: Spotlight and Bento layouts, your photo (latest)
+### Pre-merge check (latest)
+* A bad photo no longer blocks the portfolio: the message appears next to the upload and the site is built without it.
+* Photos smaller than 200 x 200 pixels are refused instead of being blown up and blurry.
+* Download buttons that redraw on every change (portfolio, *Save my profile*) now build their file on click. Before, the
+  browser downloaded the whole site in the background after every change, and a quick change could make that fetch
+  fail (the unexplained `404` messages in earlier load tests).
+* Test-suite hygiene: two fake servers in the tests printed expected disconnects as tracebacks; they now expect them,
+  and the tests assert the client really disconnected / sent nothing.
+
+### Portfolio: Spotlight and Bento layouts, your photo
 * **Spotlight**: a modern tech/agency landing page: a big uppercase headline with a gradient last word, your photo
   (or initials) in a glowing ring, floating cards for your city and current role, skill pills.
 * **Bento**: an overview in rounded tiles (introduction, figures, current role, skills, contact), then your work.

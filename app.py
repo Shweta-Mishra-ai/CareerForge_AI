@@ -63,7 +63,7 @@ def sidebar() -> None:
             saved = dump_file(profile, state.tracker())
             download(
                 "Save my profile",
-                saved,
+                lambda: saved,  # sent on click only; this page reruns on every change
                 f"{safe_file_stem(profile.name, 'profile')}_careerforge.json",
                 "application/json",
                 key="sidebar-save",
