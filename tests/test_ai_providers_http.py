@@ -41,7 +41,7 @@ def groq_ok(text, finish="stop"):
 
 class FakeServer:
     def __init__(self):
-        self.script, self.seen = [], []
+        self.script, self.seen, self.hung_up = [], [], 0
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -56,13 +56,16 @@ class FakeServer:
                 if extra.get("sleep"):
                     time.sleep(extra["sleep"])
                 data = json.dumps(payload).encode()
-                self.send_response(status)
-                self.send_header("content-type", "application/json")
-                for k, v in extra.get("headers", {}).items():
-                    self.send_header(k, v)
-                self.send_header("content-length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
+                try:
+                    self.send_response(status)
+                    self.send_header("content-type", "application/json")
+                    for k, v in extra.get("headers", {}).items():
+                        self.send_header(k, v)
+                    self.send_header("content-length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                except (BrokenPipeError, ConnectionResetError):
+                    outer.hung_up += 1  # the timeout test's client gives up before the slow reply: expected
 
             def log_message(self, *a):
                 pass
@@ -147,6 +150,10 @@ class TestGemini:
         server.script = [(200, {}, {"sleep": 1.5})]
         with pytest.raises(AIUnavailable):
             slow.complete("m", REQ)
+        deadline = time.monotonic() + 5
+        while not server.hung_up and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert server.hung_up == 1  # the client really closed the connection instead of leaving it open
 
     def test_connection_refused_is_unavailable(self):
         dead = GeminiProvider("KEY-GEM-123456", base_url="http://127.0.0.1:9", timeout_s=2)
