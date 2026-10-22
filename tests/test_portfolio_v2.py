@@ -53,11 +53,11 @@ class TestAutoTheme:
                         with_accent(THEMES["auto"], f"#{r:02x}{g:02x}{b:02x}")
 
     def test_the_same_accent_is_fine_on_a_single_theme(self):
-        assert with_accent(THEMES["light"], "#7c3aed").accent == "#7c3aed"
+        assert with_accent(THEMES["light"], "#6d28d9").accent == "#6d28d9"
 
     def test_the_page_builder_reports_the_refusal(self):
         with pytest.raises(ValueError, match="Choose Light, Dark or Minimal"):
-            make(theme="auto", accent="#7c3aed")
+            make(theme="auto", accent="#6d28d9")
 
     def test_auto_is_offered_as_a_choice(self):
         assert PortfolioOptions(theme="auto").theme == "auto"

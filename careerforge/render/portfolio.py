@@ -16,7 +16,7 @@ from typing import Literal
 from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from careerforge.ats.match import experience_months
 from careerforge.models import Profile
@@ -24,7 +24,8 @@ from careerforge.outreach import attachment_name
 from careerforge.readiness import NotReady, Readiness, check
 from careerforge.render.cv import CSP, _env
 from careerforge.render.options import RenderOptions
-from careerforge.render.themes import THEMES, with_accent
+from careerforge.render.portfolio_art import cover_svg, monogram
+from careerforge.render.themes import PRESETS, THEMES, with_accent, with_preset
 from careerforge.render.view import build_blocks, contact_items, meta_description
 from careerforge.text import normalize_url
 
@@ -61,11 +62,15 @@ class PortfolioOptions(BaseModel):
 
     theme: str = "dark"
     accent: str | None = None
+    preset: str | None = (
+        None  # a named colour (see themes.PRESETS); unlike `accent` it also works on the automatic theme
+    )
     site_url: str = ""  # the address you will publish at; enables the canonical link
     show_email: bool = True
     show_phone: bool = False  # a public phone number invites spam, so it is opt-in
     show_stats: bool = True
     hidden: frozenset[str] = frozenset()
+    order: tuple[str, ...] = ()  # sections in the order you want; any you leave out follow in the default order
     lang: str = "en"
     layout: Literal["profile", "hero", "editorial"] = "profile"
     show_location: bool = False  # a city on a public page is a privacy choice, so it is opt-in
@@ -88,6 +93,19 @@ class PortfolioOptions(BaseModel):
             raise ValueError(f"Unknown theme '{v}'. Choose one of: {', '.join(THEMES)}")
         return v
 
+    @field_validator("preset")
+    @classmethod
+    def _preset(cls, v: str | None) -> str | None:
+        if v is not None and v not in PRESETS:
+            raise ValueError(f"Unknown colour '{v}'. Choose one of: {', '.join(PRESETS)}")
+        return v
+
+    @model_validator(mode="after")
+    def _one_colour(self) -> PortfolioOptions:
+        if self.preset and self.accent:
+            raise ValueError("Choose either a named colour or your own accent colour, not both")
+        return self
+
     @field_validator("accent")
     @classmethod
     def _accent(cls, v: str | None) -> str | None:
@@ -106,6 +124,16 @@ class PortfolioOptions(BaseModel):
         unknown = v - set(PORTFOLIO_SECTIONS) - {"contact"}
         if unknown:
             raise ValueError(f"Unknown sections: {', '.join(sorted(unknown))}")
+        return v
+
+    @field_validator("order")
+    @classmethod
+    def _order(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        unknown = set(v) - set(PORTFOLIO_SECTIONS)
+        if unknown:
+            raise ValueError(f"Unknown sections: {', '.join(sorted(unknown))}")
+        if len(set(v)) != len(v):
+            raise ValueError("A section can only appear once in the order")
         return v
 
     @field_validator("lang")
@@ -266,7 +294,9 @@ def build_portfolio(
         raise NotReady(gate)
     p = profile.exportable()
     theme = THEMES[options.theme]
-    if options.accent:
+    if options.preset:
+        theme = with_preset(theme, options.preset)
+    elif options.accent:
         theme = with_accent(theme, options.accent)
 
     site_url = options.site_url or (f"https://{options.custom_domain}/" if options.custom_domain else "")
@@ -274,7 +304,8 @@ def build_portfolio(
     cv_name = attachment_name(p, "CV", "pdf")
     cv_link = cv_name if options.include_cv and cv_pdf else ""
 
-    shown = [s for s in PORTFOLIO_SECTIONS if s not in options.hidden]
+    ordered = [*options.order, *(s for s in PORTFOLIO_SECTIONS if s not in options.order)]
+    shown = [s for s in ordered if s not in options.hidden]
     blocks = {b.name: b for b in build_blocks(p, RenderOptions())}
     sections = [s for s in shown if _CV_NAME.get(s, s) in blocks]
 
@@ -305,6 +336,8 @@ def build_portfolio(
             sameas=sameas,
             person=_structured_data(p, description, site_url, sameas),
             favicon=_favicon(p.name, theme),
+            cover=cover_svg,
+            monos=[monogram(e.company or e.title) for e in p.experience],
             initials=_initials(p.name),
             where=p.contact.location if options.show_location else "",
             mail=next((c for c in contact if c.kind == "email"), None),

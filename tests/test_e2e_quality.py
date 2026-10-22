@@ -56,14 +56,14 @@ class TestHostileContent:
         expect(page.get_by_text("ATS match score")).to_be_visible()
         s.go("Insights")
         s.choose("Keyword heat")
-        s.go("CV & portfolio")
+        s.go("CV")
         page.wait_for_timeout(1500)
         for template in ("ATS Modern", "Executive", "Designed Sidebar"):
             page.get_by_role("combobox", name="Template").click()
             page.get_by_role("option", name=template).click()
             page.wait_for_timeout(700)
             assert not pwned(page)
-        s.choose("Portfolio website")
+        s.go("Portfolio")
         page.wait_for_timeout(2000)
         assert not pwned(page)
         s.go("Letters & interviews")
@@ -78,7 +78,7 @@ class TestHostileContent:
     def test_preview_frames_forbid_scripts_even_if_markup_slipped_through(self, session):
         s, page = session, session.page
         s.load_cv()
-        s.go("CV & portfolio")
+        s.go("CV")
         frame_el = page.locator("iframe").first
         expect(frame_el).to_be_visible(timeout=30000)
         frame = page.frame_locator("iframe").first
@@ -147,8 +147,8 @@ class TestMobile:
         s, page = phone, phone.page
         s.load_cv()
         page.get_by_test_id("stExpandSidebarButton").click()
-        page.get_by_role("link", name="CV & portfolio").first.click()
-        s.wait_title("CV & portfolio")
+        page.get_by_role("link", name=re.compile(r"(^|\s)CV$")).first.click()
+        s.wait_title("CV")
         expect(page.get_by_role("button", name=re.compile("Build my files"))).to_be_visible(timeout=30000)
         assert self.overflow(page) <= 1
 
@@ -222,7 +222,7 @@ class TestAccessibility:
     def test_export_page(self, session):
         s = session
         s.load_cv()
-        s.go("CV & portfolio")
+        s.go("CV")
         expect(s.page.get_by_role("button", name=re.compile("Build my files"))).to_be_visible(timeout=30000)
         found = violations(s.page)
         assert not found, describe(found)

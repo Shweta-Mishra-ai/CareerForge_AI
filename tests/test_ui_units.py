@@ -224,7 +224,7 @@ def test_a_profile_is_required_by_every_data_page():
     from ui_helpers import new_app, open_page
 
     at = new_app().run()
-    for name in ["review", "match", "tailor", "insights", "export", "linkedin", "write", "jobs"]:
+    for name in ["review", "match", "tailor", "insights", "cv", "portfolio", "linkedin", "write", "jobs"]:
         open_page(at, name)
         assert not at.exception, name
         assert any("Start by adding" in i.value for i in at.info), name

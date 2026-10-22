@@ -3,32 +3,35 @@
 {% block layout_css %}
 .topbar { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--border); }
 .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; }
-.topbar .brand { font-weight: 700; letter-spacing: -0.01em; }
-.topbar nav ul { gap: 0.1rem 1.1rem; }
+.topbar .brand { display: inline-flex; align-items: center; gap: 0.6rem; font-weight: 700; letter-spacing: -0.01em; }
+.topbar .brand i { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 0.72rem; font-style: normal; letter-spacing: 0.02em; }
+.topbar nav ul { gap: 0.1rem 0.3rem; }
+.topbar nav a { padding: 0.3rem 0.65rem; border-radius: 0.5rem; }
+.topbar nav a:hover { background: var(--tint); text-decoration: none; }
 .wrap { width: min(100% - 2rem, 70rem); margin-inline: auto; }
-.hero { background: linear-gradient(160deg, var(--tint), var(--bg) 85%); border-bottom: 1px solid var(--border); padding: 4.5rem 0 3.5rem; }
-.hero .inner { display: flex; gap: 2.5rem; align-items: flex-start; }
-.hero .avatar { width: 8rem; height: 8rem; font-size: 2.8rem; margin-top: 0.4rem; }
-.hero h1 { font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1.05; letter-spacing: -0.03em; }
-.hero .headline { font-size: clamp(1.15rem, 2.6vw, 1.55rem); color: var(--muted); margin-top: 0.6rem; }
-.hero .where { color: var(--muted); margin-top: 0.3rem; }
-.hero .actions { margin-top: 1.6rem; }
-.hero .stats { margin-top: 2.2rem; }
-.hero .stats li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1.3rem; box-shadow: var(--shadow); }
-.sec-about .lead { font-size: 1.3rem; }
-.timeline > li { background: transparent; }
+.hero { position: relative; isolation: isolate; background: radial-gradient(60rem 28rem at 8% -10%, var(--wash) 0, transparent 70%), radial-gradient(48rem 26rem at 100% 110%, var(--wash2) 0, transparent 70%), var(--bg); border-bottom: 1px solid var(--border); padding: 5rem 0 4rem; overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 3.5rem 3.5rem; opacity: 0.45; -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%); mask-image: linear-gradient(to bottom, #000, transparent 85%); }
+.hero .inner { display: flex; gap: 2.75rem; align-items: center; }
+.hero .avatar { width: 9rem; height: 9rem; font-size: 3.1rem; box-shadow: 0 0 0 0.5rem var(--surface), var(--shadow); }
+.hero h1 { font-size: clamp(2.5rem, 6vw, 4.2rem); line-height: 1.04; letter-spacing: -0.035em; }
+.hero .headline { font-size: clamp(1.15rem, 2.6vw, 1.6rem); color: var(--muted); margin-top: 0.7rem; }
+.hero .where { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text); margin-top: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.15rem 0.9rem 0.15rem 0.7rem; font-size: 0.95rem; }
+.hero .actions { margin-top: 1.7rem; }
+.hero .stats { margin-top: 2.4rem; }
+.hero .stats li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem 1.4rem; box-shadow: var(--shadow); }
+.sec-about .lead { font-size: 1.32rem; }
 .sec-projects .featured { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
-@media (max-width: 40rem) { .hero { padding: 2.5rem 0 2rem; } .hero .inner { flex-direction: column; align-items: flex-start; gap: 1.2rem; } .hero .avatar { width: 5.5rem; height: 5.5rem; font-size: 1.9rem; } .topbar nav { display: none; } }
+@media (max-width: 40rem) { .hero { padding: 2.75rem 0 2.25rem; } .hero .inner { flex-direction: column; align-items: flex-start; gap: 1.3rem; } .hero .avatar { width: 5.8rem; height: 5.8rem; font-size: 2rem; } .topbar nav { display: none; } }
 {% endblock %}
 {% block page %}
-<header class="topbar"><div class="wrap"><span class="brand">{{ p.name }}</span>{{ pf.nav() }}</div></header>
+<header class="topbar"><div class="wrap"><span class="brand"><i aria-hidden="true">{{ initials }}</i>{{ p.name }}</span>{{ pf.nav() }}</div></header>
 <section class="hero" aria-label="Introduction">
 <div class="wrap inner">
 <div class="avatar" aria-hidden="true">{{ initials }}</div>
 <div>
 <h1>{{ p.name }}</h1>
 {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
-{% if where %}<p class="where">{{ where }}</p>{% endif %}
+{{ pf.where_line() }}
 <div class="actions">{{ pf.buttons() }}</div>
 {{ pf.stat_list() }}
 </div>

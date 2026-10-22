@@ -628,16 +628,16 @@ def test_about_page_explains_the_score_and_limits():
 
 class TestExport:
     def test_requires_a_profile(self):
-        assert any("Start by adding" in i.value for i in open_page(new_app().run(), "export").info)
+        assert any("Start by adding" in i.value for i in open_page(new_app().run(), "cv").info)
 
     def test_not_ready_shows_blockers_a_draft_preview_and_no_downloads(self):
-        at = page("export", experienced().model_copy(update={"contact": Contact(email="x@example.com")}))
+        at = page("cv", experienced().model_copy(update={"contact": Contact(email="x@example.com")}))
         assert not at.exception and "must be fixed" in texts(at)
         assert not [b for b in at.get("download_button") if "pdf" in b.label.lower()]
         assert "draft preview" in at.get("iframe")[0].proto.srcdoc.lower()
 
     def test_ready_profile_builds_every_format_and_reports_the_pdf_parse(self):
-        at = page("export")
+        at = page("cv")
         assert "ready to export" in texts(at)
         button(at, "Build my files").click()
         at.run()
@@ -649,26 +649,26 @@ class TestExport:
         assert {"PDF", "Word (.docx)", "Plain text", "HTML"} <= labels
 
     def test_changing_a_setting_invalidates_the_built_files(self):
-        at = page("export")
+        at = page("cv")
         button(at, "Build my files").click()
         at.run()
         find(at.selectbox, "Template").set_value("executive").run()
         assert "build again" in texts(at) and not [b for b in at.get("download_button") if b.label == "PDF"]
 
     def test_every_template_option_renders_a_preview(self):
-        at = page("export")
+        at = page("cv")
         for template in ("ats-classic", "ats-modern", "executive", "sidebar"):
             find(at.selectbox, "Template").set_value(template).run()
             assert not at.exception and "Priya Nair" in at.get("iframe")[0].proto.srcdoc
         assert any("not ATS-safe" in w.value or "simple ATS parsers" in w.value for w in at.warning)
 
     def test_unreadable_accent_is_explained(self):
-        at = page("export")
+        at = page("cv")
         find(at.color_picker, "Accent").set_value("#ffff00").run()
         assert not at.exception and any("too light" in e.value for e in at.error)
 
     def test_section_selection_and_order_reach_the_preview(self):
-        at = page("export")
+        at = page("cv")
         sections = find(at.multiselect, "Sections")
         sections.set_value(["skills", "experience"]).run()
         html = at.get("iframe")[0].proto.srcdoc
@@ -676,14 +676,13 @@ class TestExport:
 
     def test_tailored_version_can_be_chosen(self):
         tailored = experienced().model_copy(update={"headline": "Tailored Headline"})
-        at = page("export", tailored=tailored)
+        at = page("cv", tailored=tailored)
         assert "Tailored Headline" not in at.get("iframe")[0].proto.srcdoc
         find(at.radio, "Which version").set_value("Tailored version").run()
         assert "Tailored Headline" in at.get("iframe")[0].proto.srcdoc
 
     def test_portfolio_tab_builds_zip_and_respects_privacy_defaults(self):
-        at = page("export")
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio")
         assert not at.exception
         html = at.get("iframe")[0].proto.srcdoc
         assert "Priya Nair" in html and "98765" not in html and "mailto:priya.nair@gmail.com" in html
@@ -694,21 +693,39 @@ class TestExport:
         assert "98765" in at.get("iframe")[0].proto.srcdoc
 
     def test_portfolio_theme_accent_and_hidden_sections(self):
-        at = page("export")
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio")
         at.radio(key="pf-theme").set_value("light").run()
-        at.multiselect(key="pf-hide").set_value(["education", "contact"]).run()
+        at.multiselect(key="pf-order").set_value(["about", "projects", "experience", "skills", "certifications"]).run()
+        at.checkbox(key="pf-contact").set_value(False).run()
         html = at.get("iframe")[0].proto.srcdoc
         assert "--bg: #ffffff" in html and 'id="education"' not in html and 'id="contact"' not in html
+        assert 'id="certifications"' in html
+
+    def test_portfolio_sections_follow_the_order_you_choose(self):
+        at = page("portfolio")
+        at.multiselect(key="pf-order").set_value(["skills", "experience", "about"]).run()
+        html = at.get("iframe")[0].proto.srcdoc
+        assert not at.exception
+        assert html.index('id="skills"') < html.index('id="experience"') < html.index('id="about"')
+        assert 'id="projects"' not in html and 'id="education"' not in html
+
+    def test_portfolio_is_its_own_page_and_the_cv_page_has_no_portfolio_switch(self):
+        cv = page("cv")
+        assert not [r for r in cv.radio if r.key == "export-tab"] and "Live preview" not in texts(cv)
+        assert not [t for t in cv.get("download_button") if "portfolio" in t.label.lower()]
+        pf = page("portfolio")
+        assert {"Download site (.zip with deploy guide)", "Download index.html only"} <= {
+            b.label for b in pf.get("download_button")
+        }
+        assert [t.value for t in pf.title] == ["Portfolio"] and [t.value for t in cv.title] == ["CV"]
 
     def test_portfolio_bad_options_are_explained(self):
-        at = page("export")
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio")
         at.radio(key="pf-theme").set_value("light").run()
-        at.checkbox(key="pf-use-accent").set_value(True).run()
+        at.selectbox(key="pf-colour").set_value("custom").run()
         at.color_picker(key="pf-accent").set_value("#ffff00").run()  # yellow on white is unreadable
         assert not at.exception and any("hard to read" in e.value for e in at.error)
-        at.checkbox(key="pf-use-accent").set_value(False).run()
+        at.selectbox(key="pf-colour").set_value("theme").run()
         at.text_input(key="pf-url").set_value("javascript:alert(1)").run()
         assert any("Options" in e.value for e in at.error)
 
@@ -718,10 +735,9 @@ class TestExport:
         p = Profile(
             name="Sam Rivera", contact=Contact(github="github.com/sam"), projects=[Project(name="Tool", stars=3)]
         )
-        at = page("export", p)
-        assert "must be fixed" in texts(at)  # CV needs an email
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio", p)
         assert not at.exception and "Sam Rivera" in at.get("iframe")[0].proto.srcdoc
+        assert "must be fixed" in texts(page("cv", p))  # the CV needs an email; the portfolio does not
 
 
 # ── LinkedIn profile text (reverse mode) ────────────────────────────────────

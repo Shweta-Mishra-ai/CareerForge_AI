@@ -12,6 +12,7 @@ numbers are pessimistic.
 
 import asyncio
 import random
+import re
 import statistics
 import sys
 import tempfile
@@ -31,7 +32,8 @@ PAGES = [
     "ATS check",
     "Tailor to a job",
     "Insights",
-    "CV & portfolio",
+    "CV",
+    "Portfolio",
     "LinkedIn profile",
     "Letters & interviews",
     "Jobs & tracker",
@@ -77,14 +79,14 @@ async def user(i, browser, url):
         await title_visible(page, "Review & edit")
         lat.setdefault("read_cv", []).append(time.time() - t)
         if len(sys.argv) > 3 and sys.argv[3] == "pdf":
-            await page.get_by_role("link", name="CV & portfolio").first.click()
-            await title_visible(page, "CV & portfolio")
+            await page.get_by_role("link", name=re.compile(r"(^|\s)CV$")).first.click()
+            await title_visible(page, "CV")
             t = time.time()
             await page.get_by_role("button", name="Build my files").first.click()
             await page.get_by_text("A simple ATS text extractor reads this PDF cleanly").first.wait_for(timeout=120000)
             lat.setdefault("build_pdf_docx_txt_html", []).append(time.time() - t)
             t = time.time()
-            await page.get_by_text("Portfolio website", exact=True).first.click()
+            await page.get_by_role("link", name=re.compile(r"(^|\s)Portfolio$")).first.click()
             await page.get_by_role("button", name="Download site (.zip with deploy guide)").wait_for(timeout=120000)
             lat.setdefault("portfolio_build", []).append(time.time() - t)
         for r in range(0 if (len(sys.argv) > 3 and sys.argv[3] == "pdf") else ROUNDS):

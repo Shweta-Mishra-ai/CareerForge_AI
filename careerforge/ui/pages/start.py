@@ -9,7 +9,7 @@ from careerforge.ingest.github import fetch_github, merge_github, parse_github_u
 from careerforge.ingest.pipeline import IngestResult, ingest_upload
 from careerforge.models import Profile
 from careerforge.tracker import Tracker, load_file
-from careerforge.ui import state
+from careerforge.ui import state, style
 from careerforge.ui.errors import AIBudgetExceeded, explain
 
 MAX_PASTE = 60_000
@@ -139,6 +139,7 @@ def _blank_tab() -> None:
 def render() -> None:
     st.title("Start")
     st.write("Add your details once. Everything else (ATS check, tailoring, CV, portfolio) is built from them.")
+    style.steps()
     current = state.profile()
     if current is not None:
         st.warning(

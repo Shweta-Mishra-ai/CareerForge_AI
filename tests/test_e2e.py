@@ -39,7 +39,7 @@ def test_old_cv_to_a_submittable_cv_and_portfolio(session):
     expect(page.get_by_text("REST API").first).to_be_visible()  # a requirement the CV does not show
 
     # CV export
-    s.go("CV & portfolio")
+    s.go("CV")
     s.click("Build my files")
     expect(page.get_by_text("A simple ATS text extractor reads this PDF cleanly").first).to_be_visible(timeout=60000)
     pdf = s.download("PDF").path()
@@ -56,7 +56,7 @@ def test_old_cv_to_a_submittable_cv_and_portfolio(session):
     assert "WORK EXPERIENCE" in open(s.download("Plain text").path(), encoding="utf-8").read()
 
     # portfolio
-    s.choose("Portfolio website")
+    s.go("Portfolio")
     expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=30000)
     z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
     html = z.read("index.html").decode()
@@ -68,15 +68,13 @@ def test_portfolio_v2_options_reach_the_downloaded_site(session):
     """Automatic theme, the CV download button, a custom domain and no-index: all land in the real zip."""
     s, page = session, session.page
     s.load_cv()
-    s.go("CV & portfolio")
-    s.choose("Portfolio website")
-    s.choose("Automatic (light or dark, like the visitor's device)")
-    page.get_by_text("What to show").click()
-    domain = page.get_by_role("textbox", name="Your own domain (optional)")
+    s.go("Portfolio")
+    s.choose("Automatic")
+    domain = page.get_by_role("textbox", name="Own domain (optional)")
     domain.fill("jane.dev")
     domain.blur()
-    page.get_by_text("Add my CV (PDF) to the site with a download button").click()
-    page.get_by_text("Ask search engines not to list this page").click()
+    page.get_by_text("Add a CV download button").click()
+    page.get_by_text("Hide from search engines").click()
     expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
     page.wait_for_timeout(1500)
     z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
@@ -152,10 +150,9 @@ def test_each_portfolio_layout_downloads_as_a_working_site(session, browser):
 
     s, page = session, session.page
     s.load_cv()
-    s.go("CV & portfolio")
-    s.choose("Portfolio website")
+    s.go("Portfolio")
     for label, marker in (("Hero", "hero"), ("Editorial", "masthead"), ("Profile", "profile")):
-        page.get_by_text(re.compile(rf"^{label}: ")).first.click()
+        page.get_by_test_id("stRadio").filter(has_text="Layout").get_by_text(label, exact=True).click()
         expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
         page.wait_for_timeout(1500)
         z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
@@ -223,7 +220,7 @@ def test_not_ready_cv_cannot_be_downloaded(session):
     s.load_cv()
     page.get_by_label("Full name").fill("")
     s.click("Save basics")
-    s.go("CV & portfolio")
+    s.go("CV")
     expect(page.get_by_text("must be fixed before you can export")).to_be_visible()
     expect(page.get_by_role("button", name="Build my files")).to_have_count(0)
     frame = page.frame_locator("iframe").first
@@ -265,7 +262,7 @@ def test_ai_journey_read_tailor_letter_interview(ai_session, ai):
     s.click("Use this tailored version")
     expect(page.get_by_text("Your main profile is unchanged")).to_be_visible()
 
-    s.go("CV & portfolio")
+    s.go("CV")
     s.choose("Tailored version")
     preview = page.frame_locator("iframe").first.locator("body")
     expect(preview).to_contain_text("Reduced p95 API latency")

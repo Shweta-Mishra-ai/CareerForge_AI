@@ -139,7 +139,7 @@ class TestExportEdges:
             raise RuntimeError("WeasyPrint exploded with /some/path")
 
         monkeypatch.setattr("careerforge.render.cv.render_cv_pdf", boom)
-        at = page("export")
+        at = page("cv")
         button(at, "Build my files").click()
         at.run()
         assert not at.exception and "Something unexpected went wrong (RuntimeError)" in at.error[0].value
@@ -148,21 +148,19 @@ class TestExportEdges:
     def test_pdf_warnings_are_shown_for_a_long_cv(self):
         from test_render_cv import maximal
 
-        at = page("export", maximal())
+        at = page("cv", maximal())
         find(at.select_slider, "Density").set_value("Relaxed (more white space)").run()
         button(at, "Build my files").click()
         at.run()
         assert any("pages" in w.value for w in at.warning)
 
     def test_portfolio_blockers_are_listed_when_not_publishable(self):
-        at = page("export", Profile(name="Sam Rivera", contact=Contact(email="sam@gmail.com")))
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio", Profile(name="Sam Rivera", contact=Contact(email="sam@gmail.com")))
         assert not at.exception and any("at least one experience, project or education" in e.value for e in at.error)
 
     def test_portfolio_warnings_are_shown(self):
         p = fresher().model_copy(update={"summary": ""})
-        at = page("export", p)
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        at = page("portfolio", p)
         assert any("About section is left out" in w.value for w in at.warning)
 
 
@@ -184,7 +182,7 @@ class TestProfileOddities:
     def test_a_profile_with_only_projects_and_no_dates_works_on_every_page(self):
         p = Profile(name="Sam Rivera", contact=Contact(email="sam.rivera@gmail.com"), projects=[Project(name="Tool")])
         at = new_app(p).run()
-        for name in ("review", "match", "insights", "export", "write", "jobs", "settings", "about"):
+        for name in ("review", "match", "insights", "cv", "portfolio", "write", "jobs", "settings", "about"):
             open_page(at, name)
             assert not at.exception, name
         assert profile_of(at) == p  # browsing never changes the profile
@@ -197,7 +195,7 @@ def test_without_a_pdf_engine_the_page_still_offers_word_text_and_html(monkeypat
         raise cv.PdfEngineUnavailable("PDF export needs the Pango text library, which is not available here.")
 
     monkeypatch.setattr(cv, "_pdf_engine", missing)
-    at = page("export")
+    at = page("cv")
     button(at, "Build my files").click()
     at.run()
     assert not at.exception and any("Pango" in w.value for w in at.warning)

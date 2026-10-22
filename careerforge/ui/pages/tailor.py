@@ -71,7 +71,7 @@ def _show(result: TailorResult) -> None:
             tailored = apply_proposal(tailored, p)
         state.set_tailored(tailored)
         st.success("Saved. Choose 'Tailored version' on the CV & portfolio page. Your main profile is unchanged.")
-        st.page_link("careerforge/ui/pages/export.py", label="Go to CV & portfolio", icon=":material/description:")
+        st.page_link("careerforge/ui/pages/cv.py", label="Go to CV", icon=":material/description:")
 
 
 def render() -> None:

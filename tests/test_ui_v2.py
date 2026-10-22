@@ -211,8 +211,7 @@ class TestTrackerV2:
 class TestPortfolioTab:
     def page(self, profile=None):
         at = new_app(profile or experienced()).run()
-        open_page(at, "export")
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        open_page(at, "portfolio")
         return at
 
     def test_the_automatic_theme_is_offered_and_switches_with_the_visitors_device(self):
@@ -220,7 +219,11 @@ class TestPortfolioTab:
         at.radio(key="pf-theme").set_value("auto").run()
         html = at.get("iframe")[0].proto.srcdoc
         assert not at.exception and "prefers-color-scheme: dark" in html
-        assert at.checkbox(key="pf-use-accent").disabled and "no single accent is readable" in texts(at)
+        assert "custom" not in at.selectbox(key="pf-colour").options  # own colour cannot work on both pages
+        assert "no single colour is readable" in texts(at)
+        at.selectbox(key="pf-colour").set_value("teal").run()  # a named colour has a light and a dark shade
+        html = at.get("iframe")[0].proto.srcdoc
+        assert not at.exception and not at.error and "#115e59" in html and "#5eead4" in html
 
     def test_a_custom_domain_is_validated_and_explained(self):
         at = self.page()
@@ -291,8 +294,7 @@ class TestOldAppParity:
 class TestPortfolioLayouts:
     def page(self):
         at = new_app(experienced()).run()
-        open_page(at, "export")
-        at.radio(key="export-tab").set_value("Portfolio website").run()
+        open_page(at, "portfolio")
         return at
 
     def test_each_layout_can_be_chosen_and_changes_the_preview(self):

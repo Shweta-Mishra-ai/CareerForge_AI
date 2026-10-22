@@ -33,7 +33,7 @@ us if a step is out of date.
 After the first build, open the app and run through this list (about five minutes):
 
 1. **Start → Paste text** with a small CV → *Read this text* → Review page shows your details.
-2. **CV & portfolio → Build my files** → download the PDF and open it. If the build fails with a message about
+2. **CV → Build my files** → download the PDF and open it. If the build fails with a message about
    `libpango` or fonts, `packages.txt` was not picked up: check it is at the repository root and reboot the app.
 3. If the app says **AI: not set up** although you added keys, open **Settings**: it names the problem (secrets that
    are not valid TOML, or keys placed under a `[section]` header). Keys must be top-level lines like

@@ -5,6 +5,21 @@
 CareerForge AI (CV builder) and CareerBoost AI (ATS, portfolio, jobs) were audited and merged into this single app.
 The audit findings and how each was resolved are in [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
 
+### Portfolio and interface (latest)
+* **CV and Portfolio are separate pages.** The portfolio is a builder of its own: look (layout, page colours, accent),
+  content (which sections, in which order, what to show) and publishing (address, domain, search engines), a full-width
+  live preview, then download and free-hosting links.
+* **Portfolio design v3**: inline icons, a soft two-colour glow behind the introduction, a generated cover picture for
+  every project (the same project always gets the same picture; it follows the page colours), company badges on the
+  experience timeline, a contact panel with labelled link tiles, lift-on-hover for visitors who allow motion, and a
+  profile card that only sticks when the window is tall enough. Still one file, no scripts, no external requests.
+* **Eight named accent colours** that work on every theme, including the automatic one (a light and a dark shade each,
+  all contrast-checked). Your own colour is still available, but is now also checked against the glow and refused on the
+  automatic theme, where no single colour can be readable on both pages.
+* **Section order** for the portfolio (`PortfolioOptions.order`).
+* **App look**: a fixed stylesheet (no user data in it), logo, a "Next" box in the sidebar that says what to do now, and
+  a three-step strip on the Start page.
+
 ### New
 * Typed `Profile` as the single source of truth, with provenance and a submission-readiness gate on every export.
 * Reading: PDF (column-aware), DOCX, TXT, pasted text, LinkedIn *Save to PDF* and data export, GitHub, saved profile.

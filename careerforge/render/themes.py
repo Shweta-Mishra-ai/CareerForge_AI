@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import colorsys
 from dataclasses import dataclass
 
 from markupsafe import Markup
@@ -24,6 +25,15 @@ def mix(top: str, base: str, share: float) -> str:
 
 
 TINT_SHARE = 0.10  # how much accent colour the tinted bands and chips carry
+WASH_SHARE = 0.16  # the strongest the decorative glow behind the hero gets; text on it is contrast-tested too
+
+
+def shift_hue(colour: str, degrees: float) -> str:
+    """The same colour with its hue turned by `degrees`; used for the second colour of gradients and cover art."""
+    r, g, b = (int(colour[i : i + 2], 16) / 255 for i in (1, 3, 5))
+    h, lum, sat = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb((h + degrees / 360) % 1.0, lum, sat)
+    return "#" + "".join(f"{round(v * 255):02x}" for v in (r, g, b))
 
 
 @dataclass(frozen=True)
@@ -47,6 +57,21 @@ class Theme:
         return mix(self.accent, self.bg, TINT_SHARE)
 
     @property
+    def wash(self) -> str:
+        """The strongest point of the glow behind the hero (decorative; text drawn there is checked)."""
+        return mix(self.accent, self.bg, WASH_SHARE)
+
+    @property
+    def wash2(self) -> str:
+        """The same glow in the partner colour (the hero blends two)."""
+        return mix(self.accent2, self.bg, WASH_SHARE)
+
+    @property
+    def accent2(self) -> str:
+        """Partner colour for gradients and cover art. Never carries text."""
+        return shift_hue(self.accent, 38)
+
+    @property
     def shadow(self) -> str:
         strength = "0.35" if self.color_scheme == "dark" else "0.08"
         return f"0 1px 2px rgba(0,0,0,{strength}), 0 10px 28px rgba(0,0,0,{strength})"
@@ -64,6 +89,12 @@ class Theme:
             (self.text, self.tint, "text on tinted areas"),
             (self.muted, self.tint, "muted text on tinted areas"),
             (self.accent, self.tint, "links on tinted areas"),
+            (self.text, self.wash, "text on the hero glow"),
+            (self.muted, self.wash, "muted text on the hero glow"),
+            (self.accent, self.wash, "links on the hero glow"),
+            (self.text, self.wash2, "text on the second hero glow"),
+            (self.muted, self.wash2, "muted text on the second hero glow"),
+            (self.accent, self.wash2, "links on the second hero glow"),
         ]
 
     def worst_contrast(self) -> float:
@@ -111,14 +142,39 @@ def with_accent(theme: Theme, accent: str) -> Theme:
 
     on_accent = "#ffffff" if contrast_ratio("#ffffff", accent) >= contrast_ratio("#000000", accent) else "#000000"
     candidate = replace(theme, accent=accent, accent_text=on_accent)
-    for fg, bg, what in candidate.text_pairs():
-        if fg == accent or bg == accent:
-            if contrast_ratio(fg, bg) < MIN_CONTRAST:
-                raise ValueError(
-                    f"Accent {accent} is hard to read on the {theme.label} theme ({what}: "
-                    f"{contrast_ratio(fg, bg):.1f}:1, needs {MIN_CONTRAST}:1). Choose a different colour"
-                )
+    for fg, bg, what in candidate.text_pairs():  # every pair: the glows and tints are derived from the accent too
+        if contrast_ratio(fg, bg) < MIN_CONTRAST:
+            raise ValueError(
+                f"Accent {accent} is hard to read on the {theme.label} theme ({what}: "
+                f"{contrast_ratio(fg, bg):.2f}:1, needs {MIN_CONTRAST}:1). Choose a different colour"
+            )
     return candidate
+
+
+# Accent presets as (colour for light pages, colour for dark pages). Each is checked against every palette in the tests,
+# so choosing one can never produce unreadable text; that is also what makes the automatic theme customisable.
+PRESETS: dict[str, tuple[str, str, str]] = {
+    "blue": ("Blue", "#1d4ed8", "#7dd3fc"),
+    "indigo": ("Indigo", "#4338ca", "#a5b4fc"),
+    "violet": ("Violet", "#6d28d9", "#c4b5fd"),
+    "rose": ("Rose", "#be123c", "#fda4af"),
+    "orange": ("Orange", "#9a3412", "#fdba74"),
+    "teal": ("Teal", "#115e59", "#5eead4"),
+    "emerald": ("Emerald", "#065f46", "#6ee7b7"),
+    "slate": ("Slate", "#334155", "#cbd5e1"),
+}
+
+
+def with_preset(theme: Theme, key: str) -> Theme:
+    """Theme recoloured with a named preset: the light-page colour on light palettes, the dark-page one on dark ones."""
+    from dataclasses import replace
+
+    if key not in PRESETS:
+        raise ValueError(f"Unknown colour '{key}'. Choose one of: {', '.join(PRESETS)}")
+    _, on_light, on_dark = PRESETS[key]
+    if theme.dark is not None:
+        return replace(with_preset(replace(theme, dark=None), key), dark=with_preset(theme.dark, key))
+    return with_accent(theme, on_dark if theme.color_scheme == "dark" else on_light)
 
 
 def _auto() -> Theme:

@@ -10,7 +10,7 @@ import streamlit as st
 from careerforge.models import MAX_FILE_BYTES
 from careerforge.readiness import check
 from careerforge.tracker import dump_file
-from careerforge.ui import state
+from careerforge.ui import state, style
 from careerforge.ui.widgets import ai_status_badge, download, safe_file_stem
 
 st.set_page_config(
@@ -32,7 +32,8 @@ PAGES = {
         st.Page(P + "insights.py", title="Insights", icon=":material/insights:", url_path="insights"),
     ],
     "Deliver": [
-        st.Page(P + "export.py", title="CV & portfolio", icon=":material/description:", url_path="export"),
+        st.Page(P + "cv.py", title="CV", icon=":material/description:", url_path="cv"),
+        st.Page(P + "portfolio.py", title="Portfolio", icon=":material/web:", url_path="portfolio"),
         st.Page(P + "linkedin.py", title="LinkedIn profile", icon=":material/badge:", url_path="linkedin"),
         st.Page(P + "write.py", title="Letters & interviews", icon=":material/mail:", url_path="write"),
     ],
@@ -48,12 +49,13 @@ PAGES = {
 
 def sidebar() -> None:
     with st.sidebar:
-        st.markdown("### CareerForge AI")
         profile = state.profile()
+        ready = profile is not None and check(profile).ready
+        page, todo = style.next_step(profile is not None, ready)
+        st.html(f'<div class="cf-next"><b>Next: {page}</b>{todo}</div>')
         if profile is None:
             st.caption("No profile loaded yet.")
         else:
-            ready = check(profile).ready
             st.markdown(f"**{profile.name or 'Unnamed profile'}**")
             st.caption(
                 ":material/check_circle: Ready to export" if ready else ":material/error: Not ready to export yet"
@@ -92,5 +94,6 @@ def sidebar() -> None:
         ai_status_badge()
 
 
+style.inject()
 sidebar()
 st.navigation(PAGES).run()

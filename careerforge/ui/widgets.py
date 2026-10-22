@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import streamlit as st
+from pydantic import ValidationError
 
 from careerforge.ats.report import AtsReport
 from careerforge.models import Profile
@@ -16,6 +17,11 @@ BAND_HELP = {
     "Fair": "Some gaps; the fixes below will help most.",
     "Needs work": "Several important gaps. Work through the fixes below.",
 }
+
+
+def first_error(exc: ValidationError) -> str:
+    """The first validation message of an options model, without pydantic's prefix."""
+    return str(exc.errors()[0]["msg"]).removeprefix("Value error, ")
 
 
 def readiness_panel(profile: Profile) -> Readiness:

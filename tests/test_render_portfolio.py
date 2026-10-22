@@ -174,7 +174,8 @@ def test_full_markup_is_inert_even_if_the_gate_were_bypassed(theme, payload, mon
     html = build(hostile(payload), theme=theme)
     s = soup(html)
     assert [t.get("type") for t in s.find_all("script")] == ["application/ld+json"]
-    assert not s.find(["img", "iframe", "svg", "object", "base"])
+    assert not s.find(["img", "iframe", "object", "base", "foreignobject", "use", "image"])
+    assert_only_our_own_inert_svgs(s)
     assert [link["rel"] for link in s.find_all("link")] == [["icon"]] and s.find("link")["href"].startswith("data:")
     assert not [t.name for t in s.find_all(True) if any(a.lower().startswith("on") for a in t.attrs)]
     assert payload in s.find("main").get_text()
@@ -208,6 +209,16 @@ def test_site_url_must_be_http_or_https():
 # ── honesty: only the user's content and computed facts ────────────────────
 
 
+def assert_only_our_own_inert_svgs(s) -> None:
+    """The page draws its own icons and cover art as inline SVG. Allow exactly that: decorative (aria-hidden), made of
+    plain shapes, with no scripting, no links and no external references, so injected markup cannot hide among them."""
+    for svg in s.find_all("svg"):
+        assert svg.get("aria-hidden") == "true", "an svg that this page did not draw"
+        assert {t.name for t in svg.find_all(True)} <= {"rect", "path", "circle"}
+        for tag in [svg, *svg.find_all(True)]:
+            assert not [a for a in tag.attrs if a.lower().startswith("on") or "href" in a.lower()]
+
+
 def text_nodes(html: str) -> list[str]:
     s = soup(html)
     main = s.find("main")
@@ -222,7 +233,9 @@ class TestNothingIsInvented:
             projects=[Project(name="Tiny Tool", description="Does one thing.")],
         )
         s = soup(build(p))
-        assert text_nodes(build(p)) == ["Projects", "Tiny Tool", "Does one thing.", "Contact", "sam.rivera@gmail.com"]
+        assert text_nodes(build(p)) == [
+            "Projects", "Tiny Tool", "Does one thing.", "Contact", "Email", "sam.rivera@gmail.com",
+        ]  # fmt: skip
         assert s.find("h1").get_text() == "Sam Rivera" and s.find("p", class_="headline") is None
 
     def test_no_summary_means_no_about_section_and_a_warning(self):
@@ -292,7 +305,7 @@ class TestNothingIsInvented:
         ]  # fmt: skip
         assert [h.get_text() for h in s.select("#projects h3")] == ["settle-core", "no-link-project"]
         assert [a.get_text() for a in s.select("#projects h3 a")] == ["settle-core"]  # only linked when a URL exists
-        assert s.select_one("#projects .meta").get_text().strip() == "★ 42 stars on GitHub"
+        assert s.select_one("#projects .meta").get_text().strip() == "42 stars on GitHub"
         assert [li.get_text() for li in s.select("#projects .chips li")] == ["Go", "Kafka"]
         assert len(s.select("#experience .timeline > li")) == 2
         assert s.select_one("#languages p").get_text() == "English, Hindi"
@@ -493,7 +506,8 @@ class TestInBrowser:
         pg, errors = self.page(browser, tmp_path, build(hostile(payload), theme=theme))
         pg.wait_for_timeout(200)
         assert (
-            pg.evaluate("window.__pwned") is None and pg.evaluate("document.querySelectorAll('img, svg').length") == 0
+            pg.evaluate("window.__pwned") is None
+            and pg.evaluate("document.querySelectorAll('img, svg:not([aria-hidden=true])').length") == 0
         )
         assert errors == []
 

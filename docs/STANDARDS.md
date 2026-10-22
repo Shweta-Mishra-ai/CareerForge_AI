@@ -78,6 +78,8 @@ withdrawing, replying to a rejection) use only your CV and what you type. Anythi
 | Rule | Basis | Tag |
 |---|---|---|
 | Three layouts (Profile, Hero, Editorial) x four colour themes, all showing exactly the same content | Design choices: the look is ours, not a recognised standard; what is tested is that every layout shows every fact, has one `h1`, a banner, `main` and a page footer, a skip link, no horizontal scroll at 320 px, and no axe WCAG A/AA violation in light and dark | Design choice (tested) |
+| Eight named accent colours, each with a light-page and a dark-page shade; every one is checked against every text colour and tint in every theme (also both pages of the automatic one) | WCAG 2.1 1.4.3, computed | **Standard**, exact |
+| Project cover pictures and company badges are decorative: generated from the project or company name, hidden from screen readers, carry no text and no colour of their own | Design choice (tested) | Design choice |
 | Text on the faint accent wash used for hero bands and chips meets AA in every palette | WCAG 2.1 1.4.3, computed from the exact blended colour | **Standard**, exact |
 | One static HTML file, no JavaScript, no external requests, strict Content Security Policy | Security by construction | Design choice (tested) |
 | WCAG 2.1 AA contrast for every text colour in every theme, in both palettes of the automatic theme | WCAG 2.1 success criterion 1.4.3 | **Standard**, exact |
