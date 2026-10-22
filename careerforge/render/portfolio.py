@@ -24,6 +24,7 @@ from careerforge.outreach import attachment_name
 from careerforge.readiness import NotReady, Readiness, check
 from careerforge.render.cv import CSP, _env
 from careerforge.render.options import RenderOptions
+from careerforge.render.photo import data_uri, prepare_photo
 from careerforge.render.portfolio_art import cover_svg, monogram
 from careerforge.render.themes import PRESETS, THEMES, with_accent, with_preset
 from careerforge.render.view import build_blocks, contact_items, meta_description
@@ -35,15 +36,26 @@ LAYOUTS: dict[str, tuple[str, str]] = {
         "Profile",
         "A profile card stays beside your work as the visitor scrolls. The most familiar portfolio look.",
     ),
+    "spotlight": (
+        "Spotlight",
+        "Dark-friendly landing page: a big gradient headline, your photo in a glowing ring, floating info cards. "
+        "Looks like a modern tech or agency site.",
+    ),
     "hero": (
         "Hero",
         "A big introduction at the top, then your work in a wide centred column. Feels like a landing page.",
+    ),
+    "bento": (
+        "Bento",
+        "Everything at a glance in a grid of rounded tiles (intro, figures, contact), then your work below. Clean and "
+        "current, like a product page.",
     ),
     "editorial": (
         "Editorial",
         "Serif typography with section labels in the margin. Calm and print-like; suits writing-heavy CVs.",
     ),
 }
+SUMMARY_IN_HERO = {"spotlight", "bento"}  # these show the summary in the introduction instead of an About section
 PORTFOLIO_SECTIONS = ("about", "projects", "experience", "skills", "education", "certifications", "languages")
 _TITLES = {
     "about": "About",
@@ -72,11 +84,12 @@ class PortfolioOptions(BaseModel):
     hidden: frozenset[str] = frozenset()
     order: tuple[str, ...] = ()  # sections in the order you want; any you leave out follow in the default order
     lang: str = "en"
-    layout: Literal["profile", "hero", "editorial"] = "profile"
+    layout: Literal["profile", "spotlight", "hero", "bento", "editorial"] = "profile"
     show_location: bool = False  # a city on a public page is a privacy choice, so it is opt-in
     custom_domain: str = ""  # e.g. "jane.dev": writes the CNAME file GitHub Pages uses and sets the site address
     noindex: bool = False  # ask search engines not to list the page (robots.txt and a meta tag)
     include_cv: bool = False  # add the CV PDF to the download and link to it from the top of the page
+    open_to_work: bool = False  # an "Open to opportunities" badge: your statement, so it is off unless you turn it on
 
     @field_validator("custom_domain")
     @classmethod
@@ -211,6 +224,11 @@ def _rows(sections: list[str], *, pair: bool) -> list[list[str]]:
     return rows
 
 
+def _current_role(p: Profile):
+    """The role marked as current, for the introduction card; None when no role is marked current."""
+    return next((e for e in p.experience if e.dates.current and (e.title or e.company)), None)
+
+
 def _initials(name: str) -> str:
     """First letters of the first and last name ("PN"); one letter for a single name; a dot if there is no letter."""
     words = [w for w in re.split(r"\s+", name.strip()) if any(c.isalpha() for c in w)]
@@ -286,13 +304,16 @@ def build_portfolio(
     *,
     today: date | None = None,
     cv_pdf: bytes | None = None,
+    photo: bytes | None = None,
 ) -> Portfolio:
+    """The site. `photo` is the raw upload: it is re-saved here (see render.photo), never embedded as given."""
     options = options or PortfolioOptions()
     today = today or date.today()
     gate = blockers(profile, options)
     if not gate.ready:
         raise NotReady(gate)
     p = profile.exportable()
+    photo_uri = data_uri(prepare_photo(photo)) if photo else ""
     theme = THEMES[options.theme]
     if options.preset:
         theme = with_preset(theme, options.preset)
@@ -316,6 +337,7 @@ def build_portfolio(
     description = meta_description(p.summary, p.headline, p.name)
     title = f"{p.name} - {p.headline}" if p.headline else p.name
     sameas = [c.href for c in contact if c.kind in ("linkedin", "github", "website")]
+    current = _current_role(p) if "experience" in sections else None
     html = (
         _env()
         .get_template(f"portfolio_{options.layout}.html.j2")
@@ -328,7 +350,14 @@ def build_portfolio(
             csp=CSP,
             blocks=blocks,
             sections=sections,
-            rows=_rows(sections, pair=options.layout != "editorial"),
+            rows=_rows(
+                [s for s in sections if not (s == "about" and options.layout in SUMMARY_IN_HERO)],
+                pair=options.layout != "editorial",
+            ),
+            top_skills=p.skills[:4] if "skills" in sections else [],
+            current=current,
+            current_mono=monogram(current.company or current.title) if current else "",
+            photo=photo_uri,
             titles=_TITLES,
             cv_name=_CV_NAME,
             contact=contact,

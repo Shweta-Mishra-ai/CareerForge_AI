@@ -43,7 +43,7 @@ class TestSameContentEveryLayout:
         words = {
             layout: set(re.findall(r"[\w'.+-]{3,}", visible_text(build(layout=layout).html))) for layout in LAYOUT_KEYS
         }
-        assert words["profile"] == words["hero"] == words["editorial"]
+        assert all(w == words["profile"] for w in words.values()), {k: w ^ words["profile"] for k, w in words.items()}
 
     def test_every_fact_of_the_profile_appears_in_every_layout(self):
         p = full_profile()
@@ -145,8 +145,11 @@ class TestPrivacyAndContent:
     @pytest.mark.parametrize("layout", LAYOUT_KEYS)
     def test_the_email_button_follows_the_email_setting(self, layout):
         s = soup(build(layout=layout).html)
-        assert [a["href"] for a in s.select("a.button")] == ["mailto:priya.nair@gmail.com"]
-        assert not soup(build(layout=layout, show_email=False).html).select("a.button")
+        mail = {a["href"] for a in s.select("a.button") if a["href"].startswith("mailto:")}
+        assert mail == {"mailto:priya.nair@gmail.com"}
+        assert all(a["href"] == "#projects" for a in s.select("a.button") if not a["href"].startswith("mailto:"))
+        hidden = soup(build(layout=layout, show_email=False).html)
+        assert not [a for a in hidden.select("a") if a["href"].startswith("mailto:")]
 
     @pytest.mark.parametrize("layout", LAYOUT_KEYS)
     def test_no_summary_means_no_about_but_a_working_page(self, layout):

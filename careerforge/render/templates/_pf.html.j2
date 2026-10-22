@@ -11,6 +11,9 @@
 {%- elif name == "external" %}<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
 {%- elif name == "code" %}<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>
 {%- elif name == "pin" %}<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>
+{%- elif name == "sparkle" %}<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>
+{%- elif name == "arrow" %}<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>
+{%- elif name == "briefcase" %}<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 13h20"/>
 {%- elif name == "star" %}<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>
 {%- endif %}</svg>
 {%- endmacro %}
@@ -18,6 +21,24 @@
 {% macro buttons(primary_first=true) -%}
 {% if cv_link %}<a class="button" href="{{ cv_link }}" download>{{ icon("download") }}Download my CV (PDF)</a>{% endif %}
 {% if mail %}<a class="button{{ ' ghost' if cv_link else '' }}" href="{{ mail.href }}">{{ icon("email") }}Email me</a>{% endif %}
+{%- endmacro %}
+
+{% macro avatar(extra="") -%}
+{% if photo %}<img class="avatar photo {{ extra }}" src="{{ photo }}" alt="Photo of {{ p.name }}" width="480" height="480">
+{%- else %}<div class="avatar {{ extra }}" aria-hidden="true">{{ initials }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro status_pill() -%}
+{% if options.open_to_work %}<p class="status"><span class="dot" aria-hidden="true"></span>Open to opportunities</p>{% endif %}
+{%- endmacro %}
+
+{% macro gradient_headline(text) -%}
+{%- set words = text.split() -%}
+{%- if words | length > 1 %}{{ words[:-1] | join(" ") }} <span class="grad">{{ words[-1] }}</span>{% else %}<span class="grad">{{ text }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro hero_about() -%}
+{% if p.summary and "about" in sections %}<div id="about" class="about-in-hero"><h2 class="sr-only">{{ titles["about"] }}</h2><p class="lead">{{ p.summary }}</p></div>{% endif %}
 {%- endmacro %}
 
 {% macro where_line() -%}

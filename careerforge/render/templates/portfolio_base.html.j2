@@ -31,9 +31,9 @@
 {% endif %}
 <script type="application/ld+json">{{ person | tojson }}</script>
 <style>
-:root { --bg: {{ theme.bg }}; --surface: {{ theme.surface }}; --text: {{ theme.text }}; --muted: {{ theme.muted }}; --accent: {{ theme.accent }}; --accent2: {{ theme.accent2 }}; --on-accent: {{ theme.accent_text }}; --border: {{ theme.border }}; --tint: {{ theme.tint }}; --wash: {{ theme.wash }}; --wash2: {{ theme.wash2 }}; --shadow: {{ theme.shadow }}; --font: {{ theme.font }}; --radius: 1rem; }
+:root { --bg: {{ theme.bg }}; --surface: {{ theme.surface }}; --text: {{ theme.text }}; --muted: {{ theme.muted }}; --accent: {{ theme.accent }}; --accent2: {{ theme.accent2 }}; --on-accent: {{ theme.accent_text }}; --border: {{ theme.border }}; --tint: {{ theme.tint }}; --wash: {{ theme.wash }}; --wash2: {{ theme.wash2 }}; --grad-end: {{ theme.grad_end }}; --shadow: {{ theme.shadow }}; --font: {{ theme.font }}; --radius: 1rem; }
 {% if theme.dark %}
-@media (prefers-color-scheme: dark) { :root { --bg: {{ theme.dark.bg }}; --surface: {{ theme.dark.surface }}; --text: {{ theme.dark.text }}; --muted: {{ theme.dark.muted }}; --accent: {{ theme.dark.accent }}; --accent2: {{ theme.dark.accent2 }}; --on-accent: {{ theme.dark.accent_text }}; --border: {{ theme.dark.border }}; --tint: {{ theme.dark.tint }}; --wash: {{ theme.dark.wash }}; --wash2: {{ theme.dark.wash2 }}; --shadow: {{ theme.dark.shadow }}; } }
+@media (prefers-color-scheme: dark) { :root { --bg: {{ theme.dark.bg }}; --surface: {{ theme.dark.surface }}; --text: {{ theme.dark.text }}; --muted: {{ theme.dark.muted }}; --accent: {{ theme.dark.accent }}; --accent2: {{ theme.dark.accent2 }}; --on-accent: {{ theme.dark.accent_text }}; --border: {{ theme.dark.border }}; --tint: {{ theme.dark.tint }}; --wash: {{ theme.dark.wash }}; --wash2: {{ theme.dark.wash2 }}; --grad-end: {{ theme.dark.grad_end }}; --shadow: {{ theme.dark.shadow }}; } }
 {% endif %}
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 5rem; -webkit-text-size-adjust: 100%; }
@@ -43,10 +43,16 @@ h1, h2, h3, p, ul, ol { margin: 0; }
 ul, ol { padding: 0; list-style: none; }
 a { color: var(--accent); text-underline-offset: 0.2em; text-decoration-thickness: 0.08em; }
 a:focus-visible, .skip:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skip { position: absolute; left: 0.5rem; top: -4rem; background: var(--accent); color: var(--on-accent); padding: 0.6rem 1rem; z-index: 20; border-radius: 0.4rem; }
 .skip:focus { top: 0.5rem; }
 .ico { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.2em; }
 .avatar { display: grid; place-items: center; width: 5.5rem; height: 5.5rem; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; font-size: 1.9rem; letter-spacing: 0.02em; box-shadow: 0 0 0 0.35rem var(--surface), var(--shadow); flex: none; }
+img.avatar { object-fit: cover; background: var(--surface); }
+.status { display: inline-flex; align-items: center; gap: 0.5rem; width: fit-content; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.85rem 0.2rem 0.7rem; font-size: 0.88rem; font-weight: 600; }
+.status .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0.25rem var(--tint); }
+.grad { background: linear-gradient(90deg, var(--accent), var(--grad-end)); -webkit-background-clip: text; background-clip: text; color: var(--accent); -webkit-text-fill-color: transparent; }
+@media (forced-colors: active) { .grad { -webkit-text-fill-color: currentColor; background: none; } }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.7rem 1.3rem; border-radius: 0.7rem; background: var(--accent); color: var(--on-accent); font-weight: 600; text-decoration: none; border: 2px solid var(--accent); line-height: 1.2; }
 .button.ghost { background: transparent; color: var(--accent); }
 .button:hover { filter: brightness(1.08); }

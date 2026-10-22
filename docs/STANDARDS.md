@@ -77,8 +77,10 @@ withdrawing, replying to a rejection) use only your CV and what you type. Anythi
 
 | Rule | Basis | Tag |
 |---|---|---|
-| Three layouts (Profile, Hero, Editorial) x four colour themes, all showing exactly the same content | Design choices: the look is ours, not a recognised standard; what is tested is that every layout shows every fact, has one `h1`, a banner, `main` and a page footer, a skip link, no horizontal scroll at 320 px, and no axe WCAG A/AA violation in light and dark | Design choice (tested) |
+| Five layouts (Profile, Spotlight, Hero, Bento, Editorial) x four colour themes, all showing exactly the same content | Design choices: the look is ours, not a recognised standard; what is tested is that every layout shows every fact, has one `h1`, a banner, `main` and a page footer, a skip link, no horizontal scroll at 320 px, and no axe WCAG A/AA violation in light and dark | Design choice (tested) |
 | Eight named accent colours, each with a light-page and a dark-page shade; every one is checked against every text colour and tint in every theme (also both pages of the automatic one) | WCAG 2.1 1.4.3, computed | **Standard**, exact |
+| Your photo (optional) is re-encoded: cropped square, 480 x 480 JPEG, all metadata (EXIF, including GPS location) dropped; files over 8 MB or 40 megapixels are refused | Privacy and page size; decompression-bomb guard | Design choice (tested) |
+| The gradient headline word needs 3:1 against every background it can sit on, otherwise it is drawn in the plain accent | WCAG 2.1 1.4.3, large text | **Standard**, exact |
 | Project cover pictures and company badges are decorative: generated from the project or company name, hidden from screen readers, carry no text and no colour of their own | Design choice (tested) | Design choice |
 | Text on the faint accent wash used for hero bands and chips meets AA in every palette | WCAG 2.1 1.4.3, computed from the exact blended colour | **Standard**, exact |
 | One static HTML file, no JavaScript, no external requests, strict Content Security Policy | Security by construction | Design choice (tested) |
@@ -87,7 +89,7 @@ withdrawing, replying to a rejection) use only your CV and what you type. Anythi
 | `prefers-color-scheme` follows the visitor's device | CSS Media Queries Level 5 | **Standard** |
 | `robots.txt`, `sitemap.xml` (when you give an address), `404.html`, `CNAME` (when you give a domain), inline icon | robotstxt.org and sitemaps.org protocols; GitHub Pages conventions | **Standard** / Convention |
 | `schema.org` Person data: name, job title, links, skills (`knowsAbout`), current employer (`worksFor`, only for a role you marked current), schools (`alumniOf`) | schema.org vocabulary. Search engines may or may not use it | Standard format; effect **unverified** |
-| No social preview image | We do not ship or fetch images; links shared on social media show text only | Limitation |
+| No social preview image | Even with your photo, the page fetches no image: the photo is embedded inside the page, and a social preview needs a separate image address, so links shared on social media show text only | Limitation |
 
 ### Measured quality (Lighthouse 12.8.2, headless Chromium, local server, 2026-10-10)
 

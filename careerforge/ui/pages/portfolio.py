@@ -109,6 +109,12 @@ def _content() -> dict:
         key="pf-stats",
         help="Years of experience, number of projects and GitHub stars: all computed from your profile.",
     )
+    open_to_work = st.checkbox(
+        'Show an "Open to opportunities" badge',
+        value=False,
+        key="pf-open",
+        help="Your own statement, so it is off unless you turn it on.",
+    )
     include_cv = st.checkbox(
         "Add a CV download button",
         value=False,
@@ -125,7 +131,22 @@ def _content() -> dict:
         "show_location": show_location,
         "show_stats": show_stats,
         "include_cv": include_cv,
+        "open_to_work": open_to_work,
     }
+
+
+def _photo() -> bytes | None:
+    upload = st.file_uploader(
+        "Your photo (optional)",
+        type=["jpg", "jpeg", "png", "webp"],
+        key="pf-photo",
+        help="Used by every layout except Editorial. A clear head-and-shoulders photo works best.",
+    )
+    st.caption(
+        "Cropped to a square and re-saved small; camera and location data are removed. It is public once you "
+        "publish, and it is not kept in your saved profile file."
+    )
+    return upload.getvalue() if upload is not None else None
 
 
 def _publishing() -> dict:
@@ -191,6 +212,7 @@ def render() -> None:
         layout, theme, accent, preset = _look()
     with content_col:
         content = _content()
+        photo = _photo()
     with publish_col:
         publishing = _publishing()
     try:
@@ -205,7 +227,7 @@ def render() -> None:
         return
     cv_pdf = _portfolio_cv(profile) if options.include_cv else None
     try:
-        built = build_portfolio(profile, options, cv_pdf=cv_pdf)
+        built = build_portfolio(profile, options, cv_pdf=cv_pdf, photo=photo)
     except (ValueError, NotReady) as exc:
         st.error(explain(exc) if isinstance(exc, NotReady) else str(exc), icon=":material/error:")
         return

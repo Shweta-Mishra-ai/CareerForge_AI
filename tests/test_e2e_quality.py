@@ -8,6 +8,8 @@ from e2e_fixtures import CV, Session
 from playwright.sync_api import expect
 from test_render_portfolio import THEME_KEYS, build, full_profile
 
+from careerforge.render.portfolio import LAYOUTS
+
 pytestmark = pytest.mark.e2e
 
 PAYLOAD = (
@@ -152,7 +154,7 @@ class TestMobile:
         expect(page.get_by_role("button", name=re.compile("Build my files"))).to_be_visible(timeout=30000)
         assert self.overflow(page) <= 1
 
-    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
+    @pytest.mark.parametrize("layout", list(LAYOUTS))
     @pytest.mark.parametrize("theme", THEME_KEYS)
     def test_generated_portfolio_is_responsive_at_320px(self, browser, theme, layout, tmp_path):
         f = tmp_path / "index.html"
@@ -243,7 +245,7 @@ class TestAccessibility:
             found = violations(s.page)
             assert not found, f"{name}: {describe(found)}"
 
-    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
+    @pytest.mark.parametrize("layout", list(LAYOUTS))
     @pytest.mark.parametrize("theme", THEME_KEYS)
     def test_generated_portfolio_has_no_wcag_violations(self, browser, theme, layout, tmp_path):
         f = tmp_path / "index.html"
@@ -260,7 +262,7 @@ class TestAccessibility:
         page.close()
         assert not found, describe(found)
 
-    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
+    @pytest.mark.parametrize("layout", list(LAYOUTS))
     def test_the_automatic_portfolio_is_accessible_in_dark_mode_too(self, browser, layout, tmp_path):
         f = tmp_path / "index.html"
         f.write_text(build(full_profile(), theme="auto", layout=layout), encoding="utf-8")
@@ -274,7 +276,7 @@ class TestAccessibility:
         page.close()
         assert not found, describe(found)
 
-    @pytest.mark.parametrize("layout", ["profile", "hero", "editorial"])
+    @pytest.mark.parametrize("layout", list(LAYOUTS))
     @pytest.mark.parametrize("scheme", ["light", "dark"])
     def test_portfolio_with_case_studies_cv_button_and_404_page_are_accessible(self, browser, tmp_path, scheme, layout):
         from datetime import date

@@ -1,0 +1,68 @@
+{% extends "portfolio_base.html.j2" %}
+{% import "_pf.html.j2" as pf with context %}
+{% block layout_css %}
+.wrap { width: min(100% - 2rem, 72rem); margin-inline: auto; }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 0 0.4rem; }
+.brand { display: inline-flex; align-items: center; gap: 0.6rem; font-weight: 700; }
+.brand i { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 0.6rem; background: var(--accent); color: var(--on-accent); font-size: 0.72rem; font-style: normal; }
+.topbar nav ul { gap: 0.1rem 0.2rem; }
+.topbar nav a { padding: 0.35rem 0.7rem; border-radius: 0.6rem; font-size: 0.95rem; }
+.topbar nav a:hover { background: var(--tint); text-decoration: none; }
+.bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: row dense; gap: 1rem; margin-top: 1.5rem; }
+.box { background: var(--surface); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; box-shadow: var(--shadow); min-width: 0; }
+.box.intro { grid-column: span 2; grid-row: span 2; display: flex; flex-direction: column; gap: 0.9rem; background: radial-gradient(28rem 18rem at 0% 0%, var(--wash) 0, transparent 70%), radial-gradient(22rem 16rem at 100% 100%, var(--wash2) 0, transparent 70%), var(--surface); }
+.intro .avatar { width: 5rem; height: 5rem; font-size: 1.7rem; border-radius: 1.2rem; box-shadow: none; }
+.intro h1 { font-size: clamp(2rem, 4.2vw, 3rem); line-height: 1.05; letter-spacing: -0.03em; }
+.intro .headline { font-size: 1.15rem; font-weight: 600; }
+.intro .where { color: var(--muted); }
+.intro .lead { color: var(--text); font-size: 1.02rem; }
+.intro .actions { margin-top: auto; padding-top: 0.5rem; }
+.box.stat { display: flex; flex-direction: column; justify-content: flex-end; min-height: 9rem; }
+.box.stat strong { font-size: clamp(2.2rem, 4vw, 3rem); line-height: 1; letter-spacing: -0.03em; color: var(--accent); }
+.box.stat span { color: var(--muted); margin-top: 0.4rem; }
+.box.skillset { grid-column: 1 / -1; }
+.box.skillset .chips { margin-top: 0; }
+.box.role { display: flex; flex-direction: column; justify-content: flex-end; gap: 0.7rem; min-height: 9rem; }
+.box.role .mono { position: static; display: grid; width: 2.8rem; height: 2.8rem; }
+.box.role strong { display: block; line-height: 1.3; }
+.box.role div > span { display: block; color: var(--muted); font-size: 0.95rem; }
+.sec-contact.box { grid-column: span 4; margin-top: 0; }
+.sec-contact.box > h2 { margin-bottom: 1rem; }
+main > .sec, main > .pair { background: var(--surface); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.75rem; box-shadow: var(--shadow); margin-top: 1rem; }
+main > .pair { gap: 1rem 2.5rem; }
+main > .pair > .sec { margin-top: 0; }
+main .sec .card, main .sec .case, main .sec .skillgroup, main .sec .box { background: var(--bg); box-shadow: none; }
+@media (max-width: 62rem) { .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sec-contact.box { grid-column: span 2; } .topbar nav { display: none; } }
+@media (max-width: 36rem) { .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; } .box.intro, .box.skillset, .box.role, .sec-contact.box { grid-column: 1 / -1; grid-row: auto; } .box.stat { min-height: 6.5rem; padding: 1rem; } .box.stat strong { font-size: 2rem; } .box.role { min-height: 0; flex-direction: row; align-items: center; justify-content: flex-start; } .box { padding: 1.2rem; border-radius: 1.2rem; } main > .sec, main > .pair { padding: 1.25rem; border-radius: 1.2rem; } }
+{% endblock %}
+{% block page %}
+<header class="topbar"><div class="wrap">
+<span class="brand"><i aria-hidden="true">{{ initials }}</i>{{ p.name }}</span>
+{{ pf.nav() }}
+</div></header>
+<main id="main" class="wrap">
+<div class="bento">
+<section class="box intro" aria-label="Introduction">
+{{ pf.avatar() }}
+{{ pf.status_pill() }}
+<h1>{{ p.name }}</h1>
+{% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
+{{ pf.where_line() }}
+{{ pf.hero_about() }}
+<div class="actions">{{ pf.buttons() }}</div>
+</section>
+{% for s in stats %}<div class="box stat"><strong>{{ s.value }}</strong><span>{{ s.label }}</span></div>
+{% endfor %}
+{% if current %}<div class="box role"><span class="mono" aria-hidden="true">{{ current_mono }}</span><div><strong>{{ current.title or current.company }}</strong>{% if current.title and current.company %}<span>{{ current.company }}</span>{% endif %}</div></div>{% endif %}
+{% if top_skills %}<div class="box skillset"><ul class="chips" aria-label="Main skills">{% for t in top_skills %}<li>{{ t }}</li>{% endfor %}</ul></div>{% endif %}
+{% if contact %}
+<section id="contact" class="sec sec-contact box" aria-labelledby="h-contact">
+<h2 id="h-contact">Contact</h2>
+{{ pf.contact_list() }}
+</section>
+{% endif %}
+</div>
+{{ pf.body() }}
+</main>
+<footer><div class="wrap"><p>{{ p.name }} &middot; Last updated {{ today }}</p></div></footer>
+{% endblock %}

@@ -5,7 +5,18 @@
 CareerForge AI (CV builder) and CareerBoost AI (ATS, portfolio, jobs) were audited and merged into this single app.
 The audit findings and how each was resolved are in [docs/MERGE_PLAN.md](docs/MERGE_PLAN.md).
 
-### Portfolio and interface (latest)
+### Portfolio: Spotlight and Bento layouts, your photo (latest)
+* **Spotlight**: a modern tech/agency landing page: a big uppercase headline with a gradient last word, your photo
+  (or initials) in a glowing ring, floating cards for your city and current role, skill pills.
+* **Bento**: an overview in rounded tiles (introduction, figures, current role, skills, contact), then your work.
+* **Your photo**, optional: cropped square, re-saved as a small JPEG; camera and location data (EXIF/GPS) are dropped.
+  Embedded in the page, so the site stays one file with no external requests. Used by every layout except Editorial.
+* **"Open to opportunities" badge**, off unless you turn it on.
+* The gradient headline is checked for large-text contrast (3:1) on every background it can sit on; where the partner
+  colour is too faint (orange, and violet on Minimal) the headline stays in the plain accent colour.
+* Introduction cards respect hidden sections: hiding Experience or Skills also removes them from the introduction.
+
+### Portfolio and interface
 * **CV and Portfolio are separate pages.** The portfolio is a builder of its own: look (layout, page colours, accent),
   content (which sections, in which order, what to show) and publishing (address, domain, search engines), a full-width
   live preview, then download and free-hosting links.

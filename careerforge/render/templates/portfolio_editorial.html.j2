@@ -26,9 +26,11 @@ header.masthead nav { margin-top: 1.6rem; }
 .chips li { border-radius: 0.3rem; }
 footer { margin-top: 2rem; }
 @media (max-width: 46rem) { .sec { grid-template-columns: 1fr; padding: 1.8rem 0; } .sec > :not(h2) { grid-column: 1; } .sec > h2 { position: static; margin-bottom: 0; } header.masthead { padding-top: 2.5rem; } }
+header.masthead .status { margin-bottom: 1.1rem; font-family: var(--font); }
 {% endblock %}
 {% block page %}
 <header class="masthead"><div class="wrap">
+{{ pf.status_pill() }}
 <h1>{{ p.name }}</h1>
 {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
 {{ pf.where_line() }}

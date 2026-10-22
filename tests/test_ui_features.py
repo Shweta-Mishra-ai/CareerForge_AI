@@ -701,6 +701,18 @@ class TestExport:
         assert "--bg: #ffffff" in html and 'id="education"' not in html and 'id="contact"' not in html
         assert 'id="certifications"' in html
 
+    @pytest.mark.parametrize(("layout", "marker"), [("spotlight", 'class="spot"'), ("bento", 'class="bento"')])
+    def test_the_new_layouts_build_in_the_app(self, layout, marker):
+        at = page("portfolio")
+        at.radio(key="pf-layout").set_value(layout).run()
+        assert not at.exception and marker in at.get("iframe")[0].proto.srcdoc
+
+    def test_the_open_to_work_badge_is_opt_in(self):
+        at = page("portfolio")
+        assert "Open to opportunities" not in at.get("iframe")[0].proto.srcdoc
+        at.checkbox(key="pf-open").set_value(True).run()
+        assert "Open to opportunities" in at.get("iframe")[0].proto.srcdoc
+
     def test_portfolio_sections_follow_the_order_you_choose(self):
         at = page("portfolio")
         at.multiselect(key="pf-order").set_value(["skills", "experience", "about"]).run()

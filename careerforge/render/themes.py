@@ -12,6 +12,7 @@ from careerforge.render.options import contrast_ratio
 SANS = Markup("system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif")
 SERIF = Markup("Georgia, 'Times New Roman', Times, serif")
 MIN_CONTRAST = 4.5  # WCAG AA for normal-size text
+LARGE_TEXT_MIN = 3.0  # WCAG AA for large text (24px, or 18.5px bold): the gradient headline
 
 
 def mix(top: str, base: str, share: float) -> str:
@@ -70,6 +71,15 @@ class Theme:
     def accent2(self) -> str:
         """Partner colour for gradients and cover art. Never carries text."""
         return shift_hue(self.accent, 38)
+
+    @property
+    def grad_end(self) -> str:
+        """Where the gradient headline word ends: the partner colour when it is readable as large text (3:1, WCAG
+        1.4.3) on every background the headline can sit on, otherwise the accent itself (no gradient)."""
+        backgrounds = (self.bg, self.surface, self.wash, self.wash2)
+        if all(contrast_ratio(self.accent2, bg) >= LARGE_TEXT_MIN for bg in backgrounds):
+            return self.accent2
+        return self.accent
 
     @property
     def shadow(self) -> str:

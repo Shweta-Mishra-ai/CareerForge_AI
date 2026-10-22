@@ -22,13 +22,15 @@
 .sec-about .lead { font-size: 1.32rem; }
 .sec-projects .featured { grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
 @media (max-width: 40rem) { .hero { padding: 2.75rem 0 2.25rem; } .hero .inner { flex-direction: column; align-items: flex-start; gap: 1.3rem; } .hero .avatar { width: 5.8rem; height: 5.8rem; font-size: 2rem; } .topbar nav { display: none; } }
+.hero .status { margin-bottom: 0.9rem; }
 {% endblock %}
 {% block page %}
 <header class="topbar"><div class="wrap"><span class="brand"><i aria-hidden="true">{{ initials }}</i>{{ p.name }}</span>{{ pf.nav() }}</div></header>
 <section class="hero" aria-label="Introduction">
 <div class="wrap inner">
-<div class="avatar" aria-hidden="true">{{ initials }}</div>
+{{ pf.avatar() }}
 <div>
+{{ pf.status_pill() }}
 <h1>{{ p.name }}</h1>
 {% if p.headline %}<p class="headline">{{ p.headline }}</p>{% endif %}
 {{ pf.where_line() }}

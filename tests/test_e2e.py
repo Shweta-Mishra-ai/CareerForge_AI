@@ -87,6 +87,49 @@ def test_portfolio_v2_options_reach_the_downloaded_site(session):
     s.assert_clean()
 
 
+def test_spotlight_with_a_photo_and_the_badge_reaches_the_downloaded_site(session, tmp_path):
+    """Upload a photo in the real page; the zip's index.html carries it inline, re-saved, with the badge."""
+    import base64
+    import io
+
+    from PIL import Image
+
+    s, page = session, session.page
+    s.load_cv()
+    s.go("Portfolio")
+    page.get_by_test_id("stRadio").filter(has_text="Layout").get_by_text("Spotlight", exact=True).click()
+    page.get_by_text("Open to opportunities").click()
+    exif = Image.Exif()
+    exif[0x010F] = "PhoneMaker"
+    photo = tmp_path / "me.jpg"
+    Image.new("RGB", (900, 1200), (180, 140, 120)).save(photo, "JPEG", exif=exif.tobytes())
+    page.get_by_test_id("stFileUploader").filter(has_text="Your photo").locator("input[type=file]").set_input_files(
+        str(photo)
+    )
+    expect(page.frame_locator("iframe").first.locator("img.avatar")).to_be_visible(timeout=60000)
+    page.wait_for_timeout(1500)
+    z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
+    html = z.read("index.html").decode()
+    assert 'class="spot"' in html and "Open to opportunities" in html
+    src = html.split('src="data:image/jpeg;base64,', 1)[1].split('"', 1)[0]
+    data = base64.b64decode(src)
+    assert b"PhoneMaker" not in data and Image.open(io.BytesIO(data)).size == (480, 480)
+    s.assert_clean()
+
+
+def test_a_file_that_is_not_a_photo_is_explained(session, tmp_path):
+    s, page = session, session.page
+    s.load_cv()
+    s.go("Portfolio")
+    fake = tmp_path / "me.png"
+    fake.write_bytes(b"not really a picture")
+    page.get_by_test_id("stFileUploader").filter(has_text="Your photo").locator("input[type=file]").set_input_files(
+        str(fake)
+    )
+    expect(page.get_by_text("could not be read as a photo")).to_be_visible(timeout=30000)
+    s.assert_clean()
+
+
 def test_a_job_posting_can_be_uploaded_as_pdf_word_or_text(session, tmp_path):
     """The old CareerBoost app took the posting as an uploaded PDF; so must this one."""
     import docx
