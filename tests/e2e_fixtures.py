@@ -1,5 +1,6 @@
 """Fixtures for the browser tests (registered as a plugin in conftest.py)."""
 
+import os
 import re
 
 import pytest
@@ -88,6 +89,8 @@ class Session:
             accept_downloads=True, viewport={"width": viewport[0], "height": viewport[1]}
         )
         self.page = self.context.new_page()
+        if rate := float(os.environ.get("CF_E2E_CPU_THROTTLE", "0") or 0):  # e.g. 4: imitate a slow CI machine
+            self.context.new_cdp_session(self.page).send("Emulation.setCPUThrottlingRate", {"rate": rate})
         self.console: list[str] = []
         self.requests: list[str] = []
         self.dialogs: list[str] = []
@@ -141,7 +144,7 @@ class Session:
         box = self.page.get_by_role("textbox", name="Job posting (paste the full text)")
         box.fill(text)
         box.blur()
-        self.page.wait_for_timeout(600)
+        self.settle()
 
     def download(self, button: str):
         with self.page.expect_download(timeout=30000) as info:

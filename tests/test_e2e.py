@@ -70,13 +70,16 @@ def test_portfolio_v2_options_reach_the_downloaded_site(session):
     s.load_cv()
     s.go("Portfolio")
     s.choose("Automatic")
+    s.settle()
     domain = page.get_by_role("textbox", name="Own domain (optional)")
     domain.fill("jane.dev")
     domain.blur()
+    s.settle()
     page.get_by_text("Add a CV download button").click()
+    s.settle()
     page.get_by_text("Hide from search engines").click()
     expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
-    page.wait_for_timeout(1500)
+    s.settle()
     z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
     names = set(z.namelist())
     assert {"index.html", "404.html", "robots.txt", "CNAME", "Priya_Nair_CV.pdf", "README.md", ".nojekyll"} <= names
@@ -98,7 +101,9 @@ def test_spotlight_with_a_photo_and_the_badge_reaches_the_downloaded_site(sessio
     s.load_cv()
     s.go("Portfolio")
     page.get_by_test_id("stRadio").filter(has_text="Layout").get_by_text("Spotlight", exact=True).click()
+    s.settle()
     page.get_by_text("Open to opportunities").click()
+    s.settle()  # attaching the file while the page is still redrawing loses it (that failed on CI)
     exif = Image.Exif()
     exif[0x010F] = "PhoneMaker"
     photo = tmp_path / "me.jpg"
@@ -107,7 +112,7 @@ def test_spotlight_with_a_photo_and_the_badge_reaches_the_downloaded_site(sessio
         str(photo)
     )
     expect(page.frame_locator("iframe").first.locator("img.avatar")).to_be_visible(timeout=60000)
-    page.wait_for_timeout(1500)
+    s.settle()
     z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
     html = z.read("index.html").decode()
     assert 'class="spot"' in html and "Open to opportunities" in html
@@ -123,6 +128,7 @@ def test_a_file_that_is_not_a_photo_is_explained(session, tmp_path):
     s.go("Portfolio")
     fake = tmp_path / "me.png"
     fake.write_bytes(b"not really a picture")
+    s.settle()
     page.get_by_test_id("stFileUploader").filter(has_text="Your photo").locator("input[type=file]").set_input_files(
         str(fake)
     )
@@ -203,7 +209,7 @@ def test_each_portfolio_layout_downloads_as_a_working_site(session, browser):
     for label, marker in (("Hero", "hero"), ("Editorial", "masthead"), ("Profile", "profile")):
         page.get_by_test_id("stRadio").filter(has_text="Layout").get_by_text(label, exact=True).click()
         expect(page.get_by_role("button", name="Download site (.zip with deploy guide)")).to_be_visible(timeout=60000)
-        page.wait_for_timeout(1500)
+        s.settle()
         z = zipfile.ZipFile(s.download("Download site (.zip with deploy guide)").path())
         html = z.read("index.html").decode()
         assert f'class="{marker}"' in html, label
@@ -285,7 +291,7 @@ def test_pages_are_reachable_by_keyboard_alone(session):
     page.get_by_role("textbox", name="Job posting (paste the full text)").focus()
     page.keyboard.type(JD)
     page.keyboard.press("Tab")
-    page.wait_for_timeout(600)
+    s.settle()
     expect(page.get_by_text("ATS match score")).to_be_visible()
 
 

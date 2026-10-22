@@ -51,7 +51,7 @@ class TestHostileContent:
         s.load_cv(path)
         for section in ("Skills", "Experience", "Education", "Projects", "Certifications", "Basics"):
             s.choose(section)
-            page.wait_for_timeout(400)
+            s.settle()
             assert not pwned(page) and not s.dialogs
         s.go("ATS check")
         s.paste_job(f"Job\nRequirements: Python {PAYLOAD}")
@@ -59,19 +59,19 @@ class TestHostileContent:
         s.go("Insights")
         s.choose("Keyword heat")
         s.go("CV")
-        page.wait_for_timeout(1500)
+        s.settle()
         for template in ("ATS Modern", "Executive", "Designed Sidebar"):
             page.get_by_role("combobox", name="Template").click()
             page.get_by_role("option", name=template).click()
-            page.wait_for_timeout(700)
+            s.settle()
             assert not pwned(page)
         s.go("Portfolio")
-        page.wait_for_timeout(2000)
+        s.settle()
         assert not pwned(page)
         s.go("Letters & interviews")
         page.get_by_label("Company", exact=True).fill(PAYLOAD)
         s.choose("Outreach emails")
-        page.wait_for_timeout(800)
+        s.settle()
         assert not pwned(page) and not s.dialogs
         # no element created from user text exists anywhere in the app page (previews live in sandboxed frames)
         assert page.locator("img[src='x'], [onerror], [onload]").count() == 0
@@ -111,7 +111,7 @@ class TestHostileContent:
         zip_bomb.write_bytes(buf.getvalue())
         page.set_input_files("input[type=file]", str(zip_bomb))
         s.click("Read this file")
-        page.wait_for_timeout(2500)
+        s.settle()
         assert not page.locator("[data-testid=stException]").count()  # messages are never read; no crash either way
         assert "Traceback" not in s.server.log_text()
 
@@ -208,7 +208,7 @@ class TestAccessibility:
         s.load_cv()
         for section in ("Basics", "Skills", "Experience", "Education", "Certifications"):
             s.choose(section)
-            s.page.wait_for_timeout(500)
+            s.settle()
             found = violations(s.page)
             assert not found, f"{section}: {describe(found)}"
 
@@ -241,7 +241,7 @@ class TestAccessibility:
             "LinkedIn profile",
         ):
             s.go(name)
-            s.page.wait_for_timeout(500)
+            s.settle()
             found = violations(s.page)
             assert not found, f"{name}: {describe(found)}"
 
