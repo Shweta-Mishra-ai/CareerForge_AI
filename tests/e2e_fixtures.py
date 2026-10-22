@@ -106,6 +106,24 @@ class Session:
         self.page.get_by_role("link", name=name).first.click()
         self.wait_title(title or name)
 
+    def settle(self, quiet_ms: int = 400, timeout_ms: int = 30000) -> None:
+        """Wait until the app has finished running its script and stayed idle for `quiet_ms`. A fixed sleep is not
+        enough on a slow machine (CI): the next click can land while the previous change is still being applied."""
+        self.page.evaluate("window.__cfBusy = performance.now()")  # a run may start just after this call
+        self.page.wait_for_function(
+            """(quiet) => {
+                const app = document.querySelector('[data-testid="stApp"]');
+                if (!app || app.getAttribute('data-test-script-state') !== 'notRunning') {
+                    window.__cfBusy = performance.now();
+                    return false;
+                }
+                return performance.now() - window.__cfBusy >= quiet;
+            }""",
+            arg=quiet_ms,
+            polling=50,
+            timeout=timeout_ms,
+        )
+
     def click(self, name: str) -> None:
         self.page.get_by_role("button", name=name).first.click()
 
